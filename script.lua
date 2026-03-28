@@ -35,7 +35,7 @@ local flyBody = nil
 local notifY = 20
 
 -- ============================================
--- COLORS — СЕРЬЁЗНАЯ ТЁМНАЯ ТЕМА
+-- COLORS
 -- ============================================
 local ACCENT       = Color3.fromRGB(138, 43, 226)
 local ACCENT_LIGHT = Color3.fromRGB(170, 70, 255)
@@ -60,194 +60,6 @@ local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Name = "DeltaMenu"
 ScreenGui.IgnoreGuiInset = true
-
--- ============================================
--- LOADING SCREEN
--- ============================================
-local LoadScreen = Instance.new("Frame", ScreenGui)
-LoadScreen.Size = UDim2.new(1, 0, 1, 0)
-LoadScreen.BackgroundColor3 = Color3.fromRGB(6, 6, 10)
-LoadScreen.ZIndex = 200
-LoadScreen.BorderSizePixel = 0
-
--- Центральный контейнер
-local LoadCenter = Instance.new("Frame", LoadScreen)
-LoadCenter.Size = UDim2.new(0, 340, 0, 280)
-LoadCenter.Position = UDim2.new(0.5, -170, 0.5, -140)
-LoadCenter.BackgroundTransparency = 1
-LoadCenter.ZIndex = 201
-
--- Логотип
-local LogoLabel = Instance.new("TextLabel", LoadCenter)
-LogoLabel.Size = UDim2.new(1, 0, 0, 60)
-LogoLabel.Position = UDim2.new(0, 0, 0, 20)
-LogoLabel.BackgroundTransparency = 1
-LogoLabel.Text = "◈"
-LogoLabel.TextColor3 = ACCENT_LIGHT
-LogoLabel.TextSize = 52
-LogoLabel.TextTransparency = 1
-LogoLabel.ZIndex = 202
-
-local TitleLoad = Instance.new("TextLabel", LoadCenter)
-TitleLoad.Size = UDim2.new(1, 0, 0, 36)
-TitleLoad.Position = UDim2.new(0, 0, 0, 82)
-TitleLoad.BackgroundTransparency = 1
-TitleLoad.Text = "DELTA"
-TitleLoad.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Black)
-TitleLoad.TextSize = 34
-TitleLoad.TextColor3 = TEXT_WHITE
-TitleLoad.TextTransparency = 1
-TitleLoad.ZIndex = 202
-
-local SubLoad = Instance.new("TextLabel", LoadCenter)
-SubLoad.Size = UDim2.new(1, 0, 0, 20)
-SubLoad.Position = UDim2.new(0, 0, 0, 118)
-SubLoad.BackgroundTransparency = 1
-SubLoad.Text = "EXECUTION FRAMEWORK"
-SubLoad.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Medium)
-SubLoad.TextSize = 11
-SubLoad.TextColor3 = TEXT_DIM
-SubLoad.TextTransparency = 1
-SubLoad.LetterSpacing = 6
-SubLoad.ZIndex = 202
-
--- Progress bar background
-local ProgBG = Instance.new("Frame", LoadCenter)
-ProgBG.Size = UDim2.new(0.65, 0, 0, 3)
-ProgBG.Position = UDim2.new(0.175, 0, 0, 168)
-ProgBG.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
-ProgBG.BorderSizePixel = 0
-ProgBG.ZIndex = 202
-local progBGC = Instance.new("UICorner", ProgBG)
-progBGC.CornerRadius = UDim.new(1, 0)
-
-local ProgFill = Instance.new("Frame", ProgBG)
-ProgFill.Size = UDim2.new(0, 0, 1, 0)
-ProgFill.BackgroundColor3 = ACCENT_LIGHT
-ProgFill.BorderSizePixel = 0
-ProgFill.ZIndex = 203
-local progFC = Instance.new("UICorner", ProgFill)
-progFC.CornerRadius = UDim.new(1, 0)
-
--- Glow effect on progress
-local ProgGlow = Instance.new("Frame", ProgFill)
-ProgGlow.Size = UDim2.new(0, 20, 0, 10)
-ProgGlow.Position = UDim2.new(1, -10, 0.5, -5)
-ProgGlow.BackgroundColor3 = ACCENT_GLOW
-ProgGlow.BackgroundTransparency = 0.4
-ProgGlow.BorderSizePixel = 0
-ProgGlow.ZIndex = 204
-local pgC = Instance.new("UICorner", ProgGlow)
-pgC.CornerRadius = UDim.new(1, 0)
-
-local StatusLabel = Instance.new("TextLabel", LoadCenter)
-StatusLabel.Size = UDim2.new(1, 0, 0, 20)
-StatusLabel.Position = UDim2.new(0, 0, 0, 185)
-StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "Initializing..."
-StatusLabel.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Regular)
-StatusLabel.TextSize = 10
-StatusLabel.TextColor3 = TEXT_DIM
-StatusLabel.TextTransparency = 1
-StatusLabel.ZIndex = 202
-
--- Декоративные линии
-local function loadLine(x, w, delay_)
-    local line = Instance.new("Frame", LoadCenter)
-    line.Size = UDim2.new(0, 0, 0, 1)
-    line.Position = UDim2.new(x, 0, 0, 155)
-    line.BackgroundColor3 = ACCENT_DARK
-    line.BackgroundTransparency = 0.5
-    line.BorderSizePixel = 0
-    line.ZIndex = 202
-    task.delay(delay_, function()
-        TweenService:Create(line, TweenInfo.new(0.8, Enum.EasingStyle.Quart), {
-            Size = UDim2.new(0, w, 0, 1)
-        }):Play()
-    end)
-end
-
-loadLine(0.05, 30, 0.3)
-loadLine(0.85, 30, 0.3)
-
--- Версия внизу
-local VerLoad = Instance.new("TextLabel", LoadCenter)
-VerLoad.Size = UDim2.new(1, 0, 0, 16)
-VerLoad.Position = UDim2.new(0, 0, 0, 240)
-VerLoad.BackgroundTransparency = 1
-VerLoad.Text = "v2.0 — private build"
-VerLoad.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Regular)
-VerLoad.TextSize = 9
-VerLoad.TextColor3 = Color3.fromRGB(50, 50, 70)
-VerLoad.TextTransparency = 1
-VerLoad.ZIndex = 202
-
--- ============================================
--- LOADING ANIMATION SEQUENCE
--- ============================================
-task.spawn(function()
-    task.wait(0.3)
-
-    -- Fade in logo
-    TweenService:Create(LogoLabel, TweenInfo.new(0.6, Enum.EasingStyle.Quart), {TextTransparency = 0}):Play()
-    task.wait(0.3)
-    TweenService:Create(TitleLoad, TweenInfo.new(0.5, Enum.EasingStyle.Quart), {TextTransparency = 0}):Play()
-    task.wait(0.2)
-    TweenService:Create(SubLoad, TweenInfo.new(0.5, Enum.EasingStyle.Quart), {TextTransparency = 0}):Play()
-    TweenService:Create(StatusLabel, TweenInfo.new(0.4), {TextTransparency = 0}):Play()
-    TweenService:Create(VerLoad, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
-
-    -- Logo pulse
-    task.spawn(function()
-        for i = 1, 6 do
-            TweenService:Create(LogoLabel, TweenInfo.new(0.5, Enum.EasingStyle.Sine), {
-                TextColor3 = ACCENT_GLOW
-            }):Play()
-            task.wait(0.5)
-            TweenService:Create(LogoLabel, TweenInfo.new(0.5, Enum.EasingStyle.Sine), {
-                TextColor3 = ACCENT_LIGHT
-            }):Play()
-            task.wait(0.5)
-        end
-    end)
-
-    -- Progress steps
-    local steps = {
-        {0.12, "Loading core modules..."},
-        {0.28, "Initializing render pipeline..."},
-        {0.45, "Building interface..."},
-        {0.62, "Connecting services..."},
-        {0.78, "Applying configuration..."},
-        {0.90, "Finalizing..."},
-        {1.00, "Ready"},
-    }
-
-    for _, step in ipairs(steps) do
-        TweenService:Create(ProgFill, TweenInfo.new(0.4, Enum.EasingStyle.Quart), {
-            Size = UDim2.new(step[1], 0, 1, 0)
-        }):Play()
-        StatusLabel.Text = step[2]
-        task.wait(math.random(35, 60) / 100)
-    end
-
-    task.wait(0.5)
-
-    -- Fade out
-    TweenService:Create(LogoLabel, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
-    TweenService:Create(TitleLoad, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
-    TweenService:Create(SubLoad, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
-    TweenService:Create(StatusLabel, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
-    TweenService:Create(VerLoad, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
-
-    task.wait(0.3)
-
-    TweenService:Create(LoadScreen, TweenInfo.new(0.5, Enum.EasingStyle.Quart), {
-        BackgroundTransparency = 1
-    }):Play()
-
-    task.wait(0.5)
-    LoadScreen:Destroy()
-end)
 
 -- ============================================
 -- RUNTIME LOOPS
@@ -312,7 +124,6 @@ local function notify(text, duration, color)
     ns.Thickness = 1
     ns.Transparency = 0.5
 
-    -- Left accent bar
     local bar = Instance.new("Frame", notif)
     bar.Size = UDim2.new(0, 3, 0.7, 0)
     bar.Position = UDim2.new(0, 0, 0.15, 0)
@@ -423,7 +234,6 @@ tbFix.Position = UDim2.new(0, 0, 0.5, 0)
 tbFix.BackgroundColor3 = BG_PANEL
 tbFix.BorderSizePixel = 0
 
--- Title separator line
 local sepLine = Instance.new("Frame", TitleBar)
 sepLine.Size = UDim2.new(1, 0, 0, 1)
 sepLine.Position = UDim2.new(0, 0, 1, -1)
@@ -460,7 +270,6 @@ VerBadge.BorderSizePixel = 0
 local vbc = Instance.new("UICorner", VerBadge)
 vbc.CornerRadius = UDim.new(0, 4)
 
--- Window controls
 local CloseBtn = Instance.new("TextButton", TitleBar)
 CloseBtn.Size = UDim2.new(0, 26, 0, 26)
 CloseBtn.Position = UDim2.new(1, -36, 0.5, -13)
@@ -552,7 +361,6 @@ LeftPanel.Position = UDim2.new(0, 0, 0, 42)
 LeftPanel.BackgroundColor3 = BG_LEFT
 LeftPanel.BorderSizePixel = 0
 
--- Left panel right border
 local lpBorder = Instance.new("Frame", LeftPanel)
 lpBorder.Size = UDim2.new(0, 1, 1, 0)
 lpBorder.Position = UDim2.new(1, -1, 0, 0)
@@ -582,7 +390,7 @@ local function showSettings(show)
 end
 
 -- ============================================
--- ALL CONTENT PANELS
+-- CONTENT PANELS
 -- ============================================
 local function makeContentPanel()
     local p = Instance.new("ScrollingFrame", SettingsFrame)
@@ -608,7 +416,7 @@ local MiscPanel = makeContentPanel()
 -- ============================================
 local navY = 14
 
-local function createNavBtn(icon, labelText)
+local function createNavBtn(iconText, labelText)
     local btn = Instance.new("TextButton", LeftPanel)
     btn.Size = UDim2.new(1, -16, 0, 36)
     btn.Position = UDim2.new(0, 8, 0, navY)
@@ -619,7 +427,6 @@ local function createNavBtn(icon, labelText)
     local bc = Instance.new("UICorner", btn)
     bc.CornerRadius = UDim.new(0, 8)
 
-    -- Accent bar left
     local accent = Instance.new("Frame", btn)
     accent.Size = UDim2.new(0, 3, 0, 0)
     accent.Position = UDim2.new(0, 0, 0.5, 0)
@@ -633,7 +440,7 @@ local function createNavBtn(icon, labelText)
     iconLbl.Size = UDim2.new(0, 24, 1, 0)
     iconLbl.Position = UDim2.new(0, 12, 0, 0)
     iconLbl.BackgroundTransparency = 1
-    iconLbl.Text = icon
+    iconLbl.Text = iconText
     iconLbl.TextColor3 = TEXT_DIM
     iconLbl.TextSize = 13
 
@@ -770,7 +577,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- ============================================
--- UI COMPONENTS
+-- UI HELPERS
 -- ============================================
 local function sectionLabel(parent, text, y)
     local lbl = Instance.new("TextLabel", parent)
@@ -782,7 +589,6 @@ local function sectionLabel(parent, text, y)
     lbl.TextSize = 9
     lbl.TextColor3 = TEXT_DIM
     lbl.TextXAlignment = Enum.TextXAlignment.Left
-    lbl.LetterSpacing = 2
 end
 
 local function createDivider(parent, y)
@@ -794,13 +600,12 @@ local function createDivider(parent, y)
 end
 
 -- ============================================
--- БОЛЬШОЙ УДОБНЫЙ СЛАЙДЕР
+-- SLIDER
 -- ============================================
 local function createSlider(parent, title, y, min, max, default, suffix, callback)
     suffix = suffix or ""
     local norm = (default - min) / (max - min)
 
-    -- Container
     local container = Instance.new("Frame", parent)
     container.Size = UDim2.new(1, -28, 0, 52)
     container.Position = UDim2.new(0, 14, 0, y)
@@ -809,7 +614,6 @@ local function createSlider(parent, title, y, min, max, default, suffix, callbac
     local cc = Instance.new("UICorner", container)
     cc.CornerRadius = UDim.new(0, 8)
 
-    -- Title
     local lbl = Instance.new("TextLabel", container)
     lbl.Size = UDim2.new(0.6, 0, 0, 20)
     lbl.Position = UDim2.new(0, 14, 0, 4)
@@ -820,7 +624,6 @@ local function createSlider(parent, title, y, min, max, default, suffix, callbac
     lbl.TextColor3 = TEXT_WHITE
     lbl.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- Value label
     local valLabel = Instance.new("TextLabel", container)
     valLabel.Size = UDim2.new(0.4, -14, 0, 20)
     valLabel.Position = UDim2.new(0.6, 0, 0, 4)
@@ -831,7 +634,6 @@ local function createSlider(parent, title, y, min, max, default, suffix, callbac
     valLabel.Text = tostring(math.floor(default)) .. suffix
     valLabel.TextXAlignment = Enum.TextXAlignment.Right
 
-    -- Track
     local track = Instance.new("Frame", container)
     track.Size = UDim2.new(1, -28, 0, 10)
     track.Position = UDim2.new(0, 14, 0, 30)
@@ -840,7 +642,6 @@ local function createSlider(parent, title, y, min, max, default, suffix, callbac
     local tc = Instance.new("UICorner", track)
     tc.CornerRadius = UDim.new(1, 0)
 
-    -- Fill
     local fill = Instance.new("Frame", track)
     fill.Size = UDim2.new(norm, 0, 1, 0)
     fill.BackgroundColor3 = ACCENT
@@ -848,7 +649,6 @@ local function createSlider(parent, title, y, min, max, default, suffix, callbac
     local fillC = Instance.new("UICorner", fill)
     fillC.CornerRadius = UDim.new(1, 0)
 
-    -- Fill glow
     local fillGlow = Instance.new("Frame", fill)
     fillGlow.Size = UDim2.new(0, 14, 0, 10)
     fillGlow.Position = UDim2.new(1, -7, 0.5, -5)
@@ -858,7 +658,6 @@ local function createSlider(parent, title, y, min, max, default, suffix, callbac
     local fgC = Instance.new("UICorner", fillGlow)
     fgC.CornerRadius = UDim.new(1, 0)
 
-    -- Knob
     local knob = Instance.new("Frame", track)
     knob.Size = UDim2.new(0, 20, 0, 20)
     knob.Position = UDim2.new(norm, -10, 0.5, -10)
@@ -871,7 +670,6 @@ local function createSlider(parent, title, y, min, max, default, suffix, callbac
     ks.Color = ACCENT
     ks.Thickness = 2
 
-    -- Inner dot
     local dot = Instance.new("Frame", knob)
     dot.Size = UDim2.new(0, 6, 0, 6)
     dot.Position = UDim2.new(0.5, -3, 0.5, -3)
@@ -975,7 +773,7 @@ end
 -- ============================================
 -- ACTION BUTTON
 -- ============================================
-local function createActionButton(parent, icon, title, y, callback)
+local function createActionButton(parent, iconText, title, y, callback)
     local btn = Instance.new("TextButton", parent)
     btn.Size = UDim2.new(1, -28, 0, 38)
     btn.Position = UDim2.new(0, 14, 0, y)
@@ -992,7 +790,7 @@ local function createActionButton(parent, icon, title, y, callback)
     iconLbl.Size = UDim2.new(0, 24, 1, 0)
     iconLbl.Position = UDim2.new(0, 12, 0, 0)
     iconLbl.BackgroundTransparency = 1
-    iconLbl.Text = icon
+    iconLbl.Text = iconText
     iconLbl.TextColor3 = ACCENT_LIGHT
     iconLbl.TextSize = 12
 
@@ -1006,7 +804,6 @@ local function createActionButton(parent, icon, title, y, callback)
     lbl.TextColor3 = TEXT_WHITE
     lbl.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- Arrow
     local arrow = Instance.new("TextLabel", btn)
     arrow.Size = UDim2.new(0, 20, 1, 0)
     arrow.Position = UDim2.new(1, -28, 0, 0)
@@ -1029,7 +826,7 @@ local function createActionButton(parent, icon, title, y, callback)
 end
 
 -- ============================================
--- RGB SLIDER (ESP)
+-- RGB SLIDER
 -- ============================================
 local function createRGBSlider(parent, name, y, initVal)
     local container = Instance.new("Frame", parent)
@@ -1290,7 +1087,6 @@ end)
 
 PlayerPanel.CanvasSize = UDim2.new(0, 0, 0, 420)
 
--- Respawn apply
 LocalPlayer.CharacterAdded:Connect(function(char)
     task.wait(0.5)
     local hum = char:FindFirstChildOfClass("Humanoid")
@@ -1367,11 +1163,11 @@ local function refreshTPList()
             end)
 
             btn.MouseButton1Click:Connect(function()
-                local char = LocalPlayer.Character
-                local tc = p.Character
-                if char and tc then
-                    local hrp = char:FindFirstChild("HumanoidRootPart")
-                    local thrp = tc:FindFirstChild("HumanoidRootPart")
+                local myChar = LocalPlayer.Character
+                local tChar = p.Character
+                if myChar and tChar then
+                    local hrp = myChar:FindFirstChild("HumanoidRootPart")
+                    local thrp = tChar:FindFirstChild("HumanoidRootPart")
                     if hrp and thrp then
                         hrp.CFrame = thrp.CFrame * CFrame.new(0, 0, 3)
                         notify("Teleported → " .. p.DisplayName, 2, GREEN)
@@ -1492,8 +1288,8 @@ end)
 local currentTab = nil
 local currentSetActive = nil
 
-local function makeTab(icon, label, panel, onOpen)
-    local btn, setActive = createNavBtn(icon, label)
+local function makeTab(iconText, label, panel, onOpen)
+    local btn, setActive = createNavBtn(iconText, label)
     btn.MouseButton1Click:Connect(function()
         if onOpen then onOpen() end
         if currentTab == panel then
@@ -1527,16 +1323,15 @@ makeTab("△", "Player", PlayerPanel)
 makeTab("◇", "Teleport", TeleportPanel, function() refreshTPList() end)
 makeTab("≡", "Misc", MiscPanel, function() pcall(updateInfo) end)
 
--- Separator in nav
+-- Nav separator
 navY = navY + 6
 local navSep = Instance.new("Frame", LeftPanel)
 navSep.Size = UDim2.new(1, -24, 0, 1)
 navSep.Position = UDim2.new(0, 12, 0, navY)
 navSep.BackgroundColor3 = BORDER
 navSep.BorderSizePixel = 0
-navY = navY + 10
 
--- User info at bottom of nav
+-- User info
 local userInfo = Instance.new("TextLabel", LeftPanel)
 userInfo.Size = UDim2.new(1, -16, 0, 30)
 userInfo.Position = UDim2.new(0, 8, 1, -40)
@@ -1582,10 +1377,7 @@ FloatButton.MouseLeave:Connect(function()
 end)
 
 -- ============================================
--- STARTUP NOTIFICATION (delayed after loading)
+-- STARTUP
 -- ============================================
-task.delay(6, function()
-    notify("◈ Delta v2.0 — Ready", 3, ACCENT_LIGHT)
-end)
-
+notify("◈ Delta v2.0 — Ready", 3, ACCENT_LIGHT)
 print("◈ DELTA v2.0 LOADED")
