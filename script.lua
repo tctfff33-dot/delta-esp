@@ -573,23 +573,46 @@ end)
 -- ============================================
 -- ORBIT LOOP
 -- ============================================
-RunService.RenderStepped:Connect(function(dt)
-    if OrbitEnabled and OrbitTargetName then
-        local targetPlayer = Players:FindFirstChild(OrbitTargetName)
-        if targetPlayer and targetPlayer.Character then
-            local targetHRP = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-            local myChar = LocalPlayer.Character
-            local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
-            if targetHRP and myHRP then
-                orbitAngle = orbitAngle + OrbitSpeed * dt
-                local x = targetHRP.Position.X + math.cos(orbitAngle) * OrbitRadius
-                local z = targetHRP.Position.Z + math.sin(orbitAngle) * OrbitRadius
-                local y = targetHRP.Position.Y
-                myHRP.CFrame = CFrame.new(x, y, z) * CFrame.Angles(0, orbitAngle + math.pi / 2, 0)
-            end
+local orbitConnection = nil
+
+local function findOrbitTarget(name)
+    for _, p in pairs(Players:GetPlayers()) do
+        if string.lower(p.Name):find(string.lower(name)) then
+            return p
         end
     end
-end)
+end
+
+local function startOrbit()
+    if orbitConnection then orbitConnection:Disconnect() end
+    orbitAngle = 0
+
+    orbitConnection = RunService.RenderStepped:Connect(function(dt)
+        if not OrbitEnabled then
+            orbitConnection:Disconnect()
+            orbitConnection = nil
+            return
+        end
+
+        local target = findOrbitTarget(OrbitTargetName or "")
+        local myChar = LocalPlayer.Character
+
+        if not target or not target.Character or not myChar then return end
+
+        local root = target.Character:FindFirstChild("HumanoidRootPart")
+        if not root then return end
+
+        orbitAngle = orbitAngle + dt * (OrbitSpeed * 20)
+
+        local offset = Vector3.new(
+            math.cos(orbitAngle) * OrbitRadius,
+            2,
+            math.sin(orbitAngle) * OrbitRadius
+        )
+
+        myChar:PivotTo(root.CFrame + offset)
+    end)
+end
 -- ============================================
 local function sectionLabel(parent, text, y)
     local lbl = Instance.new("TextLabel", parent)
@@ -740,62 +763,85 @@ end
 local function createRGBSlider(parent, name, y)
     sectionLabel(parent, name, y)
 
-    local frame = Instance.new("Frame", parent)
-    frame.Size = UDim2.new(1, -20, 0, 6)
-    frame.Position = UDim2.new(0, 10, 0, y + 22)
-    frame.BackgroundColor3 = BG_ITEM
-    frame.BorderSizePixel = 0
-    local fc = Instance.new("UICorner", frame)
-    fc.CornerRadius = UDim.new(1, 0)
-
     local initVal = name == "R" and ESPColor.R or name == "G" and ESPColor.G or ESPColor.B
 
-    local fill = Instance.new("Frame", frame)
+    -- Track (visual only, 6px)
+    local track = Instance.new("Frame", parent)
+    track.Size = UDim2.new(1, -20, 0, 6)
+    track.Position = UDim2.new(0, 10, 0, y + 22)
+    track.BackgroundColor3 = BG_ITEM
+    track.BorderSizePixel = 0
+    track.ZIndex = 2
+    local tc = Instance.new("UICorner", track)
+    tc.CornerRadius = UDim.new(1, 0)
+
+    local fill = Instance.new("Frame", track)
     fill.Size = UDim2.new(initVal, 0, 1, 0)
     fill.BackgroundColor3 = name == "R" and Color3.fromRGB(220,50,80) or name == "G" and Color3.fromRGB(50,200,100) or Color3.fromRGB(50,100,255)
     fill.BorderSizePixel = 0
+    fill.ZIndex = 3
     local fillC = Instance.new("UICorner", fill)
     fillC.CornerRadius = UDim.new(1, 0)
 
-    local knob = Instance.new("Frame", frame)
+    local knob = Instance.new("Frame", track)
     knob.Size = UDim2.new(0, 16, 0, 16)
     knob.Position = UDim2.new(initVal, -8, 0.5, -8)
     knob.BackgroundColor3 = Color3.new(1,1,1)
     knob.BorderSizePixel = 0
+    knob.ZIndex = 4
     local kc = Instance.new("UICorner", knob)
     kc.CornerRadius = UDim.new(1, 0)
     local ks = Instance.new("UIStroke", knob)
     ks.Color = ACCENT
     ks.Thickness = 1.5
 
+    -- Invisible hit area (30px tall) over the track
+    local hitbox = Instance.new("TextButton", parent)
+    hitbox.Size = UDim2.new(1, -20, 0, 30)
+    hitbox.Position = UDim2.new(0, 10, 0, y + 12)
+    hitbox.BackgroundTransparency = 1
+    hitbox.Text = ""
+    hitbox.ZIndex = 5
+
     local dragging = false
 
-    local function update(input)
-        local pos = math.clamp((input.Position.X - frame.AbsolutePosition.X) / frame.AbsoluteSize.X, 0, 1)
+    local function update(inputX)
+        local pos = math.clamp((inputX - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
         fill.Size = UDim2.new(pos, 0, 1, 0)
         knob.Position = UDim2.new(pos, -8, 0.5, -8)
         local val = math.floor(pos * 255)
-        if name == "R" then ESPColor = Color3.fromRGB(val, ESPColor.G*255, ESPColor.B*255) end
-        if name == "G" then ESPColor = Color3.fromRGB(ESPColor.R*255, val, ESPColor.B*255) end
-        if name == "B" then ESPColor = Color3.fromRGB(ESPColor.R*255, ESPColor.G*255, val) end
+        if name == "R" then ESPColor = Color3.fromRGB(val, math.floor(ESPColor.G*255), math.floor(ESPColor.B*255)) end
+        if name == "G" then ESPColor = Color3.fromRGB(math.floor(ESPColor.R*255), val, math.floor(ESPColor.B*255)) end
+        if name == "B" then ESPColor = Color3.fromRGB(math.floor(ESPColor.R*255), math.floor(ESPColor.G*255), val) end
         for _,v in pairs(ESPObjects) do
-            if v then
-                v.FillColor = ESPColor
-                v.OutlineColor = ESPColor
-            end
+            if v then v.FillColor = ESPColor; v.OutlineColor = ESPColor end
         end
     end
 
-    frame.InputBegan:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true; MainFrame.Active = false; update(i)
-        end
+    hitbox.MouseButton1Down:Connect(function(x)
+        dragging = true
+        update(x)
     end)
-    frame.InputEnded:Connect(function()
-        dragging = false; MainFrame.Active = true
+    hitbox.MouseButton1Up:Connect(function()
+        dragging = false
     end)
-    UIS.InputChanged:Connect(function(i)
-        if dragging then update(i) end
+    hitbox.MouseLeave:Connect(function()
+        dragging = false
+    end)
+    hitbox.MouseMoved:Connect(function(x)
+        if dragging then update(x) end
+    end)
+
+    -- Touch support
+    hitbox.TouchStarted:Connect(function(touch)
+        dragging = true
+        update(touch.Position.X)
+    end)
+    hitbox.TouchEnded:Connect(function()
+        dragging = false
+    end)
+    hitbox.TouchMoved:Connect(function(touch)
+        if dragging then update(touch.Position.X) end
     end)
 end
 
@@ -1017,10 +1063,11 @@ createToggle(PlayerScroll, "Orbit Player", 424, false, function(v)
             OrbitEnabled = false
             return
         end
-        orbitAngle = 0
+        startOrbit()
         notify("Orbit ENABLED", 2, GREEN)
     else
         notify("Orbit DISABLED", 2, RED)
+        -- PlatformStand reset handled inside loop
     end
 end)
 
