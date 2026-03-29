@@ -1307,30 +1307,32 @@ FloatButton.MouseButton1Click:Connect(function()
         TweenService:Create(MainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
             Size = UDim2.new(0, 500, 0, 0),
             Position = UDim2.new(0.5, -250, 0.5, -10),
-            Rotation = -8,
-            BackgroundTransparency = 1
+            Rotation = -8
         }):Play()
         task.delay(0.35, function()
             MainFrame.Visible = false
             MainFrame.Size = UDim2.new(0, 500, 0, 440)
             MainFrame.Position = UDim2.new(0.5, -250, 0.5, -220)
             MainFrame.Rotation = 0
-            MainFrame.BackgroundTransparency = 0
             MainFrame.Active = true
         end)
     else
-        -- Open: grow + rotate in + fade
+        -- Open: grow + rotate in
         MainFrame.Visible = true
         MainFrame.Size = UDim2.new(0, 480, 0, 0)
         MainFrame.Position = UDim2.new(0.5, -240, 0.5, -10)
         MainFrame.Rotation = 6
-        MainFrame.BackgroundTransparency = 1
         TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
             Size = UDim2.new(0, 500, 0, 440),
             Position = UDim2.new(0.5, -250, 0.5, -220),
-            Rotation = 0,
-            BackgroundTransparency = 0
+            Rotation = 0
         }):Play()
+        -- Restore active tab if one was selected
+        if currentTab then
+            currentTab.Visible = true
+            SettingsFrame.Visible = true
+            SettingsFrame.BackgroundTransparency = 0
+        end
     end
 end)
 
