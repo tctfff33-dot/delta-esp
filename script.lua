@@ -921,11 +921,21 @@ createSlider(DisplayPanel, "Field of View", 215, 70, 120, 70, function(v)
 end)
 
 -- ============================================
--- PLAYER PANEL CONTENT
+-- PLAYER PANEL CONTENT (with scroll)
 -- ============================================
-sectionLabel(PlayerPanel, "Movement", 10)
+local PlayerScroll = Instance.new("ScrollingFrame", PlayerPanel)
+PlayerScroll.Size = UDim2.new(1, 0, 1, 0)
+PlayerScroll.Position = UDim2.new(0, 0, 0, 0)
+PlayerScroll.BackgroundTransparency = 1
+PlayerScroll.BorderSizePixel = 0
+PlayerScroll.ScrollBarThickness = 3
+PlayerScroll.ScrollBarImageColor3 = ACCENT
+PlayerScroll.CanvasSize = UDim2.new(0, 0, 0, 590)
+PlayerScroll.ClipsDescendants = true
 
-createSlider(PlayerPanel, "Walk Speed", 30, 16, 200, 16, function(v)
+sectionLabel(PlayerScroll, "Movement", 10)
+
+createSlider(PlayerScroll, "Walk Speed", 30, 16, 200, 16, function(v)
     SpeedValue = v
     local char = LocalPlayer.Character
     if char then
@@ -934,7 +944,7 @@ createSlider(PlayerPanel, "Walk Speed", 30, 16, 200, 16, function(v)
     end
 end)
 
-createSlider(PlayerPanel, "Jump Power", 85, 50, 300, 50, function(v)
+createSlider(PlayerScroll, "Jump Power", 85, 50, 300, 50, function(v)
     JumpValue = v
     local char = LocalPlayer.Character
     if char then
@@ -943,9 +953,9 @@ createSlider(PlayerPanel, "Jump Power", 85, 50, 300, 50, function(v)
     end
 end)
 
-sectionLabel(PlayerPanel, "Abilities", 140)
+sectionLabel(PlayerScroll, "Abilities", 140)
 
-createToggle(PlayerPanel, "Fly", 160, false, function(v)
+createToggle(PlayerScroll, "Fly", 160, false, function(v)
     FlyEnabled = v
     if v then
         startFly()
@@ -956,16 +966,16 @@ createToggle(PlayerPanel, "Fly", 160, false, function(v)
     end
 end)
 
-createSlider(PlayerPanel, "Fly Speed", 205, 10, 200, 50, function(v)
+createSlider(PlayerScroll, "Fly Speed", 205, 10, 200, 50, function(v)
     FlySpeed = v
 end)
 
-createToggle(PlayerPanel, "Noclip", 265, false, function(v)
+createToggle(PlayerScroll, "Noclip", 265, false, function(v)
     NoclipEnabled = v
     notify(v and "Noclip ENABLED" or "Noclip DISABLED", 2, v and GREEN or RED)
 end)
 
-createToggle(PlayerPanel, "Infinite Jump", 310, false, function(v)
+createToggle(PlayerScroll, "Infinite Jump", 310, false, function(v)
     InfJumpEnabled = v
     notify(v and "Infinite Jump ENABLED" or "Infinite Jump DISABLED", 2, v and GREEN or RED)
 end)
@@ -973,9 +983,9 @@ end)
 -- ============================================
 -- ORBIT UI
 -- ============================================
-sectionLabel(PlayerPanel, "Orbit", 360)
+sectionLabel(PlayerScroll, "Orbit", 360)
 
-local OrbitNameBox = Instance.new("TextBox", PlayerPanel)
+local OrbitNameBox = Instance.new("TextBox", PlayerScroll)
 OrbitNameBox.Size = UDim2.new(1, -20, 0, 34)
 OrbitNameBox.Position = UDim2.new(0, 10, 0, 380)
 OrbitNameBox.PlaceholderText = "Target player name..."
@@ -999,7 +1009,7 @@ OrbitNameBox.FocusLost:Connect(function()
     end
 end)
 
-createToggle(PlayerPanel, "Orbit Player", 424, false, function(v)
+createToggle(PlayerScroll, "Orbit Player", 424, false, function(v)
     OrbitEnabled = v
     if v then
         if not OrbitTargetName or OrbitTargetName == "" then
@@ -1014,11 +1024,11 @@ createToggle(PlayerPanel, "Orbit Player", 424, false, function(v)
     end
 end)
 
-createSlider(PlayerPanel, "Orbit Radius", 468, 2, 20, 5, function(v)
+createSlider(PlayerScroll, "Orbit Radius", 468, 2, 20, 5, function(v)
     OrbitRadius = v
 end)
 
-createSlider(PlayerPanel, "Orbit Speed", 523, 0.5, 5, 1, function(v)
+createSlider(PlayerScroll, "Orbit Speed", 523, 0.5, 5, 1, function(v)
     OrbitSpeed = v
 end)
 
