@@ -13,7 +13,7 @@ local Blur = Instance.new("BlurEffect", Lighting)
 Blur.Size = 0
 
 -- ESP
-local ESPColor = Color3.fromRGB(180, 0, 255)
+local ESPColor = Color3.fromRGB(200, 200, 200)
 local ESPEnabled = false
 local ESPObjects = {}
 
@@ -30,6 +30,13 @@ local SpeedValue = 16
 local JumpValue = 50
 local FlySpeed = 50
 local lastCF = Camera.CFrame
+
+-- ORBIT
+local OrbitEnabled = false
+local OrbitTargetName = nil
+local OrbitRadius = 5
+local OrbitSpeed = 1
+local orbitAngle = 0
 local currentBlur = 0
 local flyBody = nil
 
@@ -93,19 +100,19 @@ LocalPlayer.CharacterAdded:Connect(function()
 end)
 
 -- ============================================
--- COLORS
+-- COLORS (Black / White / Grey theme)
 -- ============================================
-local ACCENT       = Color3.fromRGB(138, 43, 226)
-local ACCENT_LIGHT = Color3.fromRGB(180, 80, 255)
-local ACCENT_DARK  = Color3.fromRGB(90,  20, 160)
-local BG_MAIN      = Color3.fromRGB(18,  18,  26)
-local BG_PANEL     = Color3.fromRGB(24,  24,  36)
-local BG_LEFT      = Color3.fromRGB(20,  20,  30)
-local BG_ITEM      = Color3.fromRGB(30,  30,  45)
+local ACCENT       = Color3.fromRGB(200, 200, 200)
+local ACCENT_LIGHT = Color3.fromRGB(255, 255, 255)
+local ACCENT_DARK  = Color3.fromRGB(80,  80,  80)
+local BG_MAIN      = Color3.fromRGB(10,  10,  10)
+local BG_PANEL     = Color3.fromRGB(18,  18,  18)
+local BG_LEFT      = Color3.fromRGB(14,  14,  14)
+local BG_ITEM      = Color3.fromRGB(26,  26,  26)
 local TEXT_WHITE    = Color3.new(1, 1, 1)
-local TEXT_GREY     = Color3.fromRGB(160, 160, 190)
-local GREEN         = Color3.fromRGB(50, 200, 100)
-local RED           = Color3.fromRGB(200, 60, 80)
+local TEXT_GREY     = Color3.fromRGB(140, 140, 140)
+local GREEN         = Color3.fromRGB(180, 180, 180)
+local RED           = Color3.fromRGB(90,  90,  90)
 
 -- ============================================
 -- GUI
@@ -190,16 +197,16 @@ end
 -- FLOAT BUTTON
 -- ============================================
 local FloatButton = Instance.new("TextButton", ScreenGui)
-FloatButton.Size = UDim2.new(0, 54, 0, 54)
-FloatButton.Position = UDim2.new(0, 20, 0, 20)
-FloatButton.Text = "◈"
+FloatButton.Size = UDim2.new(0, 48, 0, 48)
+FloatButton.Position = UDim2.new(0, 24, 0, 24)
+FloatButton.Text = "+"
 FloatButton.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold)
-FloatButton.TextSize = 22
+FloatButton.TextSize = 26
 FloatButton.BackgroundColor3 = BG_PANEL
 FloatButton.TextColor3 = ACCENT_LIGHT
 FloatButton.BorderSizePixel = 0
 local fbCorner = Instance.new("UICorner", FloatButton)
-fbCorner.CornerRadius = UDim.new(1, 0)
+fbCorner.CornerRadius = UDim.new(0, 10)
 local fbStroke = Instance.new("UIStroke", FloatButton)
 fbStroke.Color = ACCENT
 fbStroke.Thickness = 1.5
@@ -325,6 +332,16 @@ makeDraggable(MainFrame, TitleBar)
 makeDraggable(FloatButton)
 
 -- ============================================
+-- FLOAT BUTTON SPIN LOOP
+-- ============================================
+local spinAngle = 0
+RunService.RenderStepped:Connect(function(dt)
+    local targetSpeed = MainFrame.Visible and 45 or 120
+    spinAngle = spinAngle + dt * targetSpeed
+    FloatButton.Rotation = spinAngle
+end)
+
+-- ============================================
 -- PANELS
 -- ============================================
 local LeftPanel = Instance.new("Frame", MainFrame)
@@ -444,7 +461,7 @@ local function createNavBtn(labelText)
     -- Hover
     btn.MouseEnter:Connect(function()
         if accent.Visible then return end
-        TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(38,38,55)}):Play()
+        TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(40, 40, 40)}):Play()
     end)
     btn.MouseLeave:Connect(function()
         if accent.Visible then return end
@@ -554,7 +571,25 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- ============================================
--- UI HELPER FUNCTIONS
+-- ORBIT LOOP
+-- ============================================
+RunService.RenderStepped:Connect(function(dt)
+    if OrbitEnabled and OrbitTargetName then
+        local targetPlayer = Players:FindFirstChild(OrbitTargetName)
+        if targetPlayer and targetPlayer.Character then
+            local targetHRP = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+            local myChar = LocalPlayer.Character
+            local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+            if targetHRP and myHRP then
+                orbitAngle = orbitAngle + OrbitSpeed * dt
+                local x = targetHRP.Position.X + math.cos(orbitAngle) * OrbitRadius
+                local z = targetHRP.Position.Z + math.sin(orbitAngle) * OrbitRadius
+                local y = targetHRP.Position.Y
+                myHRP.CFrame = CFrame.new(x, y, z) * CFrame.Angles(0, orbitAngle + math.pi / 2, 0)
+            end
+        end
+    end
+end)
 -- ============================================
 local function sectionLabel(parent, text, y)
     local lbl = Instance.new("TextLabel", parent)
@@ -935,6 +970,58 @@ createToggle(PlayerPanel, "Infinite Jump", 310, false, function(v)
     notify(v and "Infinite Jump ENABLED" or "Infinite Jump DISABLED", 2, v and GREEN or RED)
 end)
 
+-- ============================================
+-- ORBIT UI
+-- ============================================
+sectionLabel(PlayerPanel, "Orbit", 360)
+
+local OrbitNameBox = Instance.new("TextBox", PlayerPanel)
+OrbitNameBox.Size = UDim2.new(1, -20, 0, 34)
+OrbitNameBox.Position = UDim2.new(0, 10, 0, 380)
+OrbitNameBox.PlaceholderText = "Target player name..."
+OrbitNameBox.Text = ""
+OrbitNameBox.BackgroundColor3 = BG_ITEM
+OrbitNameBox.TextColor3 = TEXT_WHITE
+OrbitNameBox.PlaceholderColor3 = TEXT_GREY
+OrbitNameBox.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json")
+OrbitNameBox.TextSize = 12
+OrbitNameBox.BorderSizePixel = 0
+local onbC = Instance.new("UICorner", OrbitNameBox)
+onbC.CornerRadius = UDim.new(0, 8)
+local onbS = Instance.new("UIStroke", OrbitNameBox)
+onbS.Color = ACCENT
+onbS.Thickness = 1
+
+OrbitNameBox.FocusLost:Connect(function()
+    OrbitTargetName = OrbitNameBox.Text ~= "" and OrbitNameBox.Text or nil
+    if OrbitTargetName then
+        notify("Orbit target: " .. OrbitTargetName, 2, ACCENT_LIGHT)
+    end
+end)
+
+createToggle(PlayerPanel, "Orbit Player", 424, false, function(v)
+    OrbitEnabled = v
+    if v then
+        if not OrbitTargetName or OrbitTargetName == "" then
+            notify("Enter a player name first!", 2, RED)
+            OrbitEnabled = false
+            return
+        end
+        orbitAngle = 0
+        notify("Orbit ENABLED", 2, GREEN)
+    else
+        notify("Orbit DISABLED", 2, RED)
+    end
+end)
+
+createSlider(PlayerPanel, "Orbit Radius", 468, 2, 20, 5, function(v)
+    OrbitRadius = v
+end)
+
+createSlider(PlayerPanel, "Orbit Speed", 523, 0.5, 5, 1, function(v)
+    OrbitSpeed = v
+end)
+
 -- Apply speed/jump on respawn
 LocalPlayer.CharacterAdded:Connect(function(char)
     task.wait(0.5)
@@ -1053,14 +1140,14 @@ end)
 
 sectionLabel(MiscPanel, "Actions", 115)
 
-createActionButton(MiscPanel, "🔄 Rejoin Server", 138, BG_ITEM, function()
+createActionButton(MiscPanel, "Rejoin Server", 138, BG_ITEM, function()
     notify("Rejoining...", 2, ACCENT_LIGHT)
     task.wait(1)
     TeleportService = game:GetService("TeleportService")
     TeleportService:Teleport(game.PlaceId, LocalPlayer)
 end)
 
-createActionButton(MiscPanel, "📋 Copy Server Link", 180, BG_ITEM, function()
+createActionButton(MiscPanel, "Copy Server Link", 180, BG_ITEM, function()
     local link = "roblox://experiences/start?placeId=" .. game.PlaceId .. "&gameInstanceId=" .. game.JobId
     if setclipboard then
         setclipboard(link)
@@ -1070,7 +1157,7 @@ createActionButton(MiscPanel, "📋 Copy Server Link", 180, BG_ITEM, function()
     end
 end)
 
-createActionButton(MiscPanel, "💀 Reset Character", 222, Color3.fromRGB(60, 30, 30), function()
+createActionButton(MiscPanel, "Reset Character", 222, Color3.fromRGB(60, 30, 30), function()
     local char = LocalPlayer.Character
     if char then
         local hum = char:FindFirstChildOfClass("Humanoid")
@@ -1135,44 +1222,57 @@ local function makeTab(label, panel, onOpen)
     end)
 end
 
-makeTab("⚡ ESP", ESPPanel, function()
+makeTab("ESP", ESPPanel, function()
     ESPEnabled = not ESPEnabled
     applyESP()
     notify(ESPEnabled and "ESP ENABLED" or "ESP DISABLED", 2, ESPEnabled and GREEN or RED)
 end)
 
-makeTab("🎨 Display", DisplayPanel)
+makeTab("Display", DisplayPanel)
 
-makeTab("🏃 Player", PlayerPanel)
+makeTab("Player", PlayerPanel)
 
-makeTab("🌀 Teleport", TeleportPanel, function()
+makeTab("Teleport", TeleportPanel, function()
     refreshTPList()
 end)
 
-makeTab("⚙ Misc", MiscPanel, function()
+makeTab("Misc", MiscPanel, function()
     pcall(updateInfo)
 end)
 
 -- ============================================
--- FLOAT TOGGLE
+-- FLOAT TOGGLE (with rotation + fade animation)
 -- ============================================
 FloatButton.MouseButton1Click:Connect(function()
     if MainFrame.Visible then
-        local t = TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quart), {
-            Size = UDim2.new(0, 460, 0, 0),
-            Position = UDim2.new(0.5, -230, 0.5, -220)
-        })
-        t:Play()
-        t.Completed:Connect(function()
+        -- Close: shrink + rotate out + fade
+        MainFrame.Active = false
+        TweenService:Create(MainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+            Size = UDim2.new(0, 500, 0, 0),
+            Position = UDim2.new(0.5, -250, 0.5, -10),
+            Rotation = -8,
+            BackgroundTransparency = 1
+        }):Play()
+        task.delay(0.35, function()
             MainFrame.Visible = false
             MainFrame.Size = UDim2.new(0, 500, 0, 440)
             MainFrame.Position = UDim2.new(0.5, -250, 0.5, -220)
+            MainFrame.Rotation = 0
+            MainFrame.BackgroundTransparency = 0
+            MainFrame.Active = true
         end)
     else
+        -- Open: grow + rotate in + fade
         MainFrame.Visible = true
-        MainFrame.Size = UDim2.new(0, 500, 0, 0)
-        TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quart), {
-            Size = UDim2.new(0, 500, 0, 440)
+        MainFrame.Size = UDim2.new(0, 480, 0, 0)
+        MainFrame.Position = UDim2.new(0.5, -240, 0.5, -10)
+        MainFrame.Rotation = 6
+        MainFrame.BackgroundTransparency = 1
+        TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 500, 0, 440),
+            Position = UDim2.new(0.5, -250, 0.5, -220),
+            Rotation = 0,
+            BackgroundTransparency = 0
         }):Play()
     end
 end)
@@ -1180,7 +1280,7 @@ end)
 -- FLOAT BUTTON HOVER
 FloatButton.MouseEnter:Connect(function()
     TweenService:Create(fbStroke, TweenInfo.new(0.2), {Color = ACCENT_LIGHT}):Play()
-    TweenService:Create(FloatButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(35,35,50)}):Play()
+    TweenService:Create(FloatButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(38, 38, 38)}):Play()
 end)
 FloatButton.MouseLeave:Connect(function()
     TweenService:Create(fbStroke, TweenInfo.new(0.2), {Color = ACCENT}):Play()
@@ -1190,5 +1290,5 @@ end)
 -- ============================================
 -- STARTUP
 -- ============================================
-notify("◈ Delta Menu v2 Loaded!", 4, ACCENT_LIGHT)
-print("◈ DELTA UI v2 LOADED")
+notify("Delta Menu v2 Loaded!", 4, ACCENT_LIGHT)
+print("DELTA UI v2 LOADED")
