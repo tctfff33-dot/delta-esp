@@ -1,1353 +1,689 @@
-local Players = game:GetService("Players")
-local UIS = game:GetService("UserInputService")
-local Lighting = game:GetService("Lighting")
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
 
--- EFFECTS
-local ColorEffect = Instance.new("ColorCorrectionEffect", Lighting)
-local Blur = Instance.new("BlurEffect", Lighting)
-Blur.Size = 0
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "CyberpunkMenu"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = game.CoreGui
 
--- ESP
-local ESPColor = Color3.fromRGB(200, 200, 200)
-local ESPEnabled = false
-local ESPObjects = {}
+local FloatBtn = Instance.new("TextButton")
+FloatBtn.Size = UDim2.new(0, 72, 0, 72)
+FloatBtn.Position = UDim2.new(1, -100, 0.4, 0)
+FloatBtn.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
+FloatBtn.Text = "Δ"
+FloatBtn.TextColor3 = Color3.fromRGB(0, 255, 255)
+FloatBtn.TextScaled = true
+FloatBtn.Font = Enum.Font.GothamBold
+FloatBtn.Parent = ScreenGui
 
--- ESP MODE
-local ESPMode = "ALL"
-local TargetName = nil
+local FloatCorner = Instance.new("UICorner")
+FloatCorner.CornerRadius = UDim.new(1, 0)
+FloatCorner.Parent = FloatBtn
 
--- FEATURES STATE
-local MotionBlurEnabled = false
-local FlyEnabled = false
-local NoclipEnabled = false
-local InfJumpEnabled = false
-local SpeedValue = 16
-local JumpValue = 50
-local FlySpeed = 50
-local lastCF = Camera.CFrame
+local FloatStroke = Instance.new("UIStroke")
+FloatStroke.Thickness = 5
+FloatStroke.Color = Color3.fromRGB(138, 43, 226)
+FloatStroke.Parent = FloatBtn
 
--- ORBIT
-local OrbitEnabled = false
-local OrbitTargetName = nil
-local OrbitRadius = 5
-local OrbitSpeed = 1
-local orbitAngle = 0
-local currentBlur = 0
-local flyBody = nil
+local FloatGradient = Instance.new("UIGradient")
+FloatGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0, Color3.fromRGB(138, 43, 226)), ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 255, 255))}
+FloatGradient.Rotation = 0
+FloatGradient.Parent = FloatStroke
 
--- NOTIFICATIONS TABLE
-local notifications = {}
-local notifY = 20
-
--- ============================================
--- MOTION BLUR
--- ============================================
-RunService.RenderStepped:Connect(function()
-    local targetBlur = 0
-    if MotionBlurEnabled then
-        local delta = (lastCF:Inverse() * Camera.CFrame)
-        local _,_,_, r00,r01,r02,r10,r11,r12 = delta:GetComponents()
-        local change = math.abs(r01) + math.abs(r02) + math.abs(r10)
-        targetBlur = math.clamp(change * 60, 0, 20)
-        lastCF = Camera.CFrame
-    end
-    currentBlur = currentBlur + (targetBlur - currentBlur) * 0.15
-    Blur.Size = currentBlur
+RunService.Heartbeat:Connect(function(dt)
+	FloatBtn.Rotation = FloatBtn.Rotation + 180 * dt
+	local pulse = math.sin(tick() * 4) * 0.15 + 0.85
+	FloatStroke.Transparency = 1 - pulse
+	FloatGradient.Rotation = FloatGradient.Rotation + 90 * dt
 end)
 
--- ============================================
--- NOCLIP LOOP
--- ============================================
-RunService.Stepped:Connect(function()
-    if NoclipEnabled and LocalPlayer.Character then
-        for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
-            end
-        end
-    end
-end)
-
--- ============================================
--- INFINITE JUMP
--- ============================================
-UIS.JumpRequest:Connect(function()
-    if InfJumpEnabled and LocalPlayer.Character then
-        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum:ChangeState(Enum.HumanoidStateType.Jumping)
-        end
-    end
-end)
-
--- FOV
-local BaseFOV = 70
-Camera.FieldOfView = BaseFOV
-
-LocalPlayer.CharacterAdded:Connect(function()
-    task.wait(1)
-    Camera.FieldOfView = BaseFOV
-    -- Reset fly on respawn
-    if FlyEnabled then
-        FlyEnabled = false
-        flyBody = nil
-    end
-end)
-
--- ============================================
--- COLORS (Black / White / Grey theme)
--- ============================================
-local ACCENT       = Color3.fromRGB(200, 200, 200)
-local ACCENT_LIGHT = Color3.fromRGB(255, 255, 255)
-local ACCENT_DARK  = Color3.fromRGB(80,  80,  80)
-local BG_MAIN      = Color3.fromRGB(10,  10,  10)
-local BG_PANEL     = Color3.fromRGB(18,  18,  18)
-local BG_LEFT      = Color3.fromRGB(14,  14,  14)
-local BG_ITEM      = Color3.fromRGB(26,  26,  26)
-local TEXT_WHITE    = Color3.new(1, 1, 1)
-local TEXT_GREY     = Color3.fromRGB(140, 140, 140)
-local GREEN         = Color3.fromRGB(180, 180, 180)
-local RED           = Color3.fromRGB(90,  90,  90)
-
--- ============================================
--- GUI
--- ============================================
-local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.Name = "DeltaMenu"
-
--- ============================================
--- NOTIFICATION SYSTEM
--- ============================================
-local function notify(text, duration, color)
-    duration = duration or 3
-    color = color or ACCENT_LIGHT
-
-    local notif = Instance.new("Frame", ScreenGui)
-    notif.Size = UDim2.new(0, 260, 0, 40)
-    notif.Position = UDim2.new(1, 270, 1, -(notifY + 40))
-    notif.BackgroundColor3 = BG_PANEL
-    notif.BorderSizePixel = 0
-    notif.ZIndex = 100
-    local nc = Instance.new("UICorner", notif)
-    nc.CornerRadius = UDim.new(0, 10)
-    local ns = Instance.new("UIStroke", notif)
-    ns.Color = color
-    ns.Thickness = 1.2
-
-    local icon = Instance.new("TextLabel", notif)
-    icon.Size = UDim2.new(0, 30, 1, 0)
-    icon.Position = UDim2.new(0, 6, 0, 0)
-    icon.BackgroundTransparency = 1
-    icon.Text = "◈"
-    icon.TextColor3 = color
-    icon.TextSize = 14
-    icon.ZIndex = 101
-
-    local lbl = Instance.new("TextLabel", notif)
-    lbl.Size = UDim2.new(1, -42, 1, 0)
-    lbl.Position = UDim2.new(0, 36, 0, 0)
-    lbl.BackgroundTransparency = 1
-    lbl.Text = text
-    lbl.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Medium)
-    lbl.TextSize = 12
-    lbl.TextColor3 = TEXT_WHITE
-    lbl.TextXAlignment = Enum.TextXAlignment.Left
-    lbl.TextWrapped = true
-    lbl.ZIndex = 101
-
-    -- Progress bar
-    local prog = Instance.new("Frame", notif)
-    prog.Size = UDim2.new(1, 0, 0, 2)
-    prog.Position = UDim2.new(0, 0, 1, -2)
-    prog.BackgroundColor3 = color
-    prog.BorderSizePixel = 0
-    prog.ZIndex = 101
-
-    -- Slide in
-    TweenService:Create(notif, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-        Position = UDim2.new(1, -275, 1, -(notifY + 40))
-    }):Play()
-
-    -- Progress shrink
-    TweenService:Create(prog, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
-        Size = UDim2.new(0, 0, 0, 2)
-    }):Play()
-
-    notifY = notifY + 50
-
-    task.delay(duration, function()
-        local t = TweenService:Create(notif, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
-            Position = UDim2.new(1, 270, notif.Position.Y.Scale, notif.Position.Y.Offset)
-        })
-        t:Play()
-        t.Completed:Connect(function()
-            notif:Destroy()
-            notifY = math.max(20, notifY - 50)
-        end)
-    end)
-end
-
--- ============================================
--- FLOAT BUTTON
--- ============================================
-local FloatButton = Instance.new("TextButton", ScreenGui)
-FloatButton.Size = UDim2.new(0, 48, 0, 48)
-FloatButton.Position = UDim2.new(0, 24, 0, 24)
-FloatButton.Text = "+"
-FloatButton.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold)
-FloatButton.TextSize = 26
-FloatButton.BackgroundColor3 = BG_PANEL
-FloatButton.TextColor3 = ACCENT_LIGHT
-FloatButton.BorderSizePixel = 0
-local fbCorner = Instance.new("UICorner", FloatButton)
-fbCorner.CornerRadius = UDim.new(0, 10)
-local fbStroke = Instance.new("UIStroke", FloatButton)
-fbStroke.Color = ACCENT
-fbStroke.Thickness = 1.5
-
--- ============================================
--- MAIN FRAME
--- ============================================
-local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 500, 0, 440)
-MainFrame.Position = UDim2.new(0.5, -250, 0.5, -220)
-MainFrame.BackgroundColor3 = BG_MAIN
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 680, 0, 520)
+MainFrame.Position = UDim2.new(0.5, -340, 0.5, -260)
+MainFrame.BackgroundColor3 = Color3.fromRGB(9, 9, 14)
 MainFrame.Visible = false
-MainFrame.Active = true
-MainFrame.BorderSizePixel = 0
-local mfCorner = Instance.new("UICorner", MainFrame)
-mfCorner.CornerRadius = UDim.new(0, 14)
-local mfStroke = Instance.new("UIStroke", MainFrame)
-mfStroke.Color = ACCENT_DARK
-mfStroke.Thickness = 1.5
+MainFrame.Parent = ScreenGui
 
--- TITLE BAR
-local TitleBar = Instance.new("Frame", MainFrame)
-TitleBar.Size = UDim2.new(1, 0, 0, 44)
-TitleBar.BackgroundColor3 = BG_PANEL
-TitleBar.BorderSizePixel = 0
-local tbCorner = Instance.new("UICorner", TitleBar)
-tbCorner.CornerRadius = UDim.new(0, 14)
-local tbFix = Instance.new("Frame", TitleBar)
-tbFix.Size = UDim2.new(1, 0, 0.5, 0)
-tbFix.Position = UDim2.new(0, 0, 0.5, 0)
-tbFix.BackgroundColor3 = BG_PANEL
-tbFix.BorderSizePixel = 0
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 16)
+MainCorner.Parent = MainFrame
 
-local TitleIcon = Instance.new("TextLabel", TitleBar)
-TitleIcon.Size = UDim2.new(0, 30, 1, 0)
-TitleIcon.Position = UDim2.new(0, 12, 0, 0)
-TitleIcon.BackgroundTransparency = 1
-TitleIcon.Text = "◈"
-TitleIcon.TextColor3 = ACCENT_LIGHT
-TitleIcon.TextSize = 18
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Thickness = 4
+MainStroke.Color = Color3.fromRGB(138, 43, 226)
+MainStroke.Parent = MainFrame
 
-local TitleLabel = Instance.new("TextLabel", TitleBar)
-TitleLabel.Size = UDim2.new(0, 200, 1, 0)
-TitleLabel.Position = UDim2.new(0, 42, 0, 0)
-TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "Delta Menu v2"
-TitleLabel.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold)
-TitleLabel.TextSize = 15
-TitleLabel.TextColor3 = TEXT_WHITE
-TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+local MainGradient = Instance.new("UIGradient")
+MainGradient.Color = ColorSequence.new{
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(15, 15, 25)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(35, 0, 70))
+}
+MainGradient.Rotation = 135
+MainGradient.Parent = MainFrame
 
--- VERSION BADGE
-local VerBadge = Instance.new("TextLabel", TitleBar)
-VerBadge.Size = UDim2.new(0, 40, 0, 18)
-VerBadge.Position = UDim2.new(0, 170, 0.5, -9)
-VerBadge.BackgroundColor3 = ACCENT_DARK
-VerBadge.Text = "v2.0"
-VerBadge.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold)
-VerBadge.TextSize = 9
-VerBadge.TextColor3 = ACCENT_LIGHT
-VerBadge.BorderSizePixel = 0
-local vbc = Instance.new("UICorner", VerBadge)
-vbc.CornerRadius = UDim.new(0, 6)
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 60)
+TitleBar.BackgroundTransparency = 1
+TitleBar.Parent = MainFrame
 
-local CloseBtn = Instance.new("TextButton", TitleBar)
-CloseBtn.Size = UDim2.new(0, 28, 0, 28)
-CloseBtn.Position = UDim2.new(1, -38, 0.5, -14)
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -80, 1, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "Δ Cyberpunk Menu"
+Title.TextColor3 = Color3.fromRGB(0, 255, 255)
+Title.TextScaled = true
+Title.Font = Enum.Font.GothamBold
+Title.Parent = TitleBar
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 40, 0, 40)
+CloseBtn.Position = UDim2.new(1, -50, 0.5, -20)
+CloseBtn.BackgroundTransparency = 1
 CloseBtn.Text = "✕"
-CloseBtn.TextSize = 13
-CloseBtn.BackgroundColor3 = RED
-CloseBtn.TextColor3 = TEXT_WHITE
-CloseBtn.BorderSizePixel = 0
-local cbCorner = Instance.new("UICorner", CloseBtn)
-cbCorner.CornerRadius = UDim.new(1, 0)
+CloseBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
+CloseBtn.TextScaled = true
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.Parent = TitleBar
 
-CloseBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = false
+local DragStart, StartPos
+TitleBar.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		DragStart = input.Position
+		StartPos = MainFrame.Position
+		local dragConn
+		dragConn = UserInputService.InputChanged:Connect(function(dragInput)
+			if dragInput.UserInputType == Enum.UserInputType.MouseMovement then
+				local delta = dragInput.Position - DragStart
+				MainFrame.Position = UDim2.new(StartPos.X.Scale, StartPos.X.Offset + delta.X, StartPos.Y.Scale, StartPos.Y.Offset + delta.Y)
+			end
+		end)
+		UserInputService.InputEnded:Connect(function(endInput)
+			if endInput.UserInputType == Enum.UserInputType.MouseButton1 then
+				dragConn:Disconnect()
+			end
+		end)
+	end
 end)
 
--- ============================================
--- DRAG SYSTEM
--- ============================================
-local function makeDraggable(frame, handle)
-    handle = handle or frame
-    local dragging = false
-    local dragInput, dragStart, startPos
+local TabContainer = Instance.new("Frame")
+TabContainer.Size = UDim2.new(1, 0, 0, 50)
+TabContainer.Position = UDim2.new(0, 0, 0, 60)
+TabContainer.BackgroundTransparency = 1
+TabContainer.Parent = MainFrame
 
-    handle.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = frame.Position
-        end
-    end)
+local ESPBtn = Instance.new("TextButton")
+ESPBtn.Size = UDim2.new(0.5, 0, 1, 0)
+ESPBtn.BackgroundColor3 = Color3.fromRGB(138, 43, 226)
+ESPBtn.Text = "ESP"
+ESPBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ESPBtn.TextScaled = true
+ESPBtn.Font = Enum.Font.GothamBold
+ESPBtn.Parent = TabContainer
 
-    handle.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement
-        or input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
-        end
-    end)
+local MoveBtn = Instance.new("TextButton")
+MoveBtn.Size = UDim2.new(0.5, 0, 1, 0)
+MoveBtn.Position = UDim2.new(0.5, 0, 0, 0)
+MoveBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+MoveBtn.Text = "Movement"
+MoveBtn.TextColor3 = Color3.fromRGB(180, 180, 255)
+MoveBtn.TextScaled = true
+MoveBtn.Font = Enum.Font.GothamBold
+MoveBtn.Parent = TabContainer
 
-    UIS.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            local delta = input.Position - dragStart
-            frame.Position = UDim2.new(
-                startPos.X.Scale, startPos.X.Offset + delta.X,
-                startPos.Y.Scale, startPos.Y.Offset + delta.Y
-            )
-        end
-    end)
+local Content = Instance.new("ScrollingFrame")
+Content.Size = UDim2.new(1, 0, 1, -110)
+Content.Position = UDim2.new(0, 0, 0, 110)
+Content.BackgroundTransparency = 1
+Content.ScrollBarThickness = 8
+Content.ScrollBarImageColor3 = Color3.fromRGB(138, 43, 226)
+Content.Parent = MainFrame
 
-    handle.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
-        end
-    end)
+local ESPSection = Instance.new("Frame")
+ESPSection.Size = UDim2.new(1, 0, 1, 0)
+ESPSection.BackgroundTransparency = 1
+ESPSection.Parent = Content
+
+local MoveSection = Instance.new("Frame")
+MoveSection.Size = UDim2.new(1, 0, 1, 0)
+MoveSection.BackgroundTransparency = 1
+MoveSection.Visible = false
+MoveSection.Parent = Content
+
+local function createSectionHeader(parent, text)
+	local header = Instance.new("TextLabel")
+	header.Size = UDim2.new(1, -40, 0, 40)
+	header.BackgroundTransparency = 1
+	header.Text = text
+	header.TextColor3 = Color3.fromRGB(0, 255, 255)
+	header.TextScaled = true
+	header.Font = Enum.Font.GothamBold
+	header.TextXAlignment = Enum.TextXAlignment.Left
+	header.Parent = parent
+	return header
 end
 
-makeDraggable(MainFrame, TitleBar)
-makeDraggable(FloatButton)
+local function createToggle(parent, text, default, callback)
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(1, -40, 0, 55)
+	frame.BackgroundTransparency = 1
+	frame.Parent = parent
 
--- ============================================
--- FLOAT BUTTON SPIN LOOP
--- ============================================
-local spinAngle = 0
-RunService.RenderStepped:Connect(function(dt)
-    local targetSpeed = MainFrame.Visible and 45 or 120
-    spinAngle = spinAngle + dt * targetSpeed
-    FloatButton.Rotation = spinAngle
-end)
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(0.65, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Text = text
+	label.TextColor3 = Color3.fromRGB(220, 220, 255)
+	label.TextScaled = true
+	label.Font = Enum.Font.GothamSemibold
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = frame
 
--- ============================================
--- PANELS
--- ============================================
-local LeftPanel = Instance.new("Frame", MainFrame)
-LeftPanel.Size = UDim2.new(0, 130, 1, -44)
-LeftPanel.Position = UDim2.new(0, 0, 0, 44)
-LeftPanel.BackgroundColor3 = BG_LEFT
-LeftPanel.BorderSizePixel = 0
-local lpCorner = Instance.new("UICorner", LeftPanel)
-lpCorner.CornerRadius = UDim.new(0, 14)
-local lpFix = Instance.new("Frame", LeftPanel)
-lpFix.Size = UDim2.new(0.5, 0, 1, 0)
-lpFix.Position = UDim2.new(0.5, 0, 0, 0)
-lpFix.BackgroundColor3 = BG_LEFT
-lpFix.BorderSizePixel = 0
+	local switch = Instance.new("Frame")
+	switch.Size = UDim2.new(0, 72, 0, 36)
+	switch.Position = UDim2.new(1, -90, 0.5, -18)
+	switch.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+	switch.Parent = frame
 
-local SettingsFrame = Instance.new("Frame", MainFrame)
-SettingsFrame.Size = UDim2.new(1, -140, 1, -54)
-SettingsFrame.Position = UDim2.new(0, 138, 0, 50)
-SettingsFrame.BackgroundColor3 = BG_PANEL
-SettingsFrame.Visible = false
-SettingsFrame.BorderSizePixel = 0
-SettingsFrame.ClipsDescendants = true
-local sfCorner = Instance.new("UICorner", SettingsFrame)
-sfCorner.CornerRadius = UDim.new(0, 12)
-local sfStroke = Instance.new("UIStroke", SettingsFrame)
-sfStroke.Color = ACCENT_DARK
-sfStroke.Thickness = 1
+	local switchCorner = Instance.new("UICorner")
+	switchCorner.CornerRadius = UDim.new(1, 0)
+	switchCorner.Parent = switch
 
--- ANIMATE OPEN/CLOSE SETTINGS
-local function showSettings(show)
-    if show then
-        SettingsFrame.Visible = true
-        SettingsFrame.BackgroundTransparency = 1
-        TweenService:Create(SettingsFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quart), {BackgroundTransparency = 0}):Play()
-    else
-        local t = TweenService:Create(SettingsFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quart), {BackgroundTransparency = 1})
-        t:Play()
-        t.Completed:Connect(function() SettingsFrame.Visible = false end)
-    end
+	local knob = Instance.new("Frame")
+	knob.Size = UDim2.new(0, 30, 0, 30)
+	knob.Position = UDim2.new(0, 3, 0.5, -15)
+	knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	knob.Parent = switch
+
+	local knobCorner = Instance.new("UICorner")
+	knobCorner.CornerRadius = UDim.new(1, 0)
+	knobCorner.Parent = knob
+
+	local state = default
+
+	local function update()
+		if state then
+			TweenService:Create(switch, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {BackgroundColor3 = Color3.fromRGB(138, 43, 226)}):Play()
+			TweenService:Create(knob, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {Position = UDim2.new(0, 39, 0.5, -15)}):Play()
+		else
+			TweenService:Create(switch, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {BackgroundColor3 = Color3.fromRGB(35, 35, 45)}):Play()
+			TweenService:Create(knob, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {Position = UDim2.new(0, 3, 0.5, -15)}):Play()
+		end
+	end
+	update()
+
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1, 0, 1, 0)
+	btn.BackgroundTransparency = 1
+	btn.Text = ""
+	btn.Parent = switch
+	btn.MouseButton1Click:Connect(function()
+		state = not state
+		update()
+		callback(state)
+	end)
+
+	return frame
 end
 
--- ============================================
--- CREATE ALL PANELS
--- ============================================
-local ESPPanel = Instance.new("Frame", SettingsFrame)
-ESPPanel.Size = UDim2.new(1, 0, 1, 0)
-ESPPanel.Visible = false
-ESPPanel.BackgroundTransparency = 1
+local function createSlider(parent, text, min, max, default, step, callback)
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(1, -40, 0, 70)
+	frame.BackgroundTransparency = 1
+	frame.Parent = parent
 
-local DisplayPanel = Instance.new("Frame", SettingsFrame)
-DisplayPanel.Size = UDim2.new(1, 0, 1, 0)
-DisplayPanel.Visible = false
-DisplayPanel.BackgroundTransparency = 1
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 0, 25)
+	label.BackgroundTransparency = 1
+	label.Text = text .. ": " .. default
+	label.TextColor3 = Color3.fromRGB(220, 220, 255)
+	label.TextScaled = true
+	label.Font = Enum.Font.GothamSemibold
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = frame
 
-local PlayerPanel = Instance.new("Frame", SettingsFrame)
-PlayerPanel.Size = UDim2.new(1, 0, 1, 0)
-PlayerPanel.Visible = false
-PlayerPanel.BackgroundTransparency = 1
+	local bar = Instance.new("Frame")
+	bar.Size = UDim2.new(1, 0, 0, 12)
+	bar.Position = UDim2.new(0, 0, 0, 35)
+	bar.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+	bar.Parent = frame
 
-local TeleportPanel = Instance.new("Frame", SettingsFrame)
-TeleportPanel.Size = UDim2.new(1, 0, 1, 0)
-TeleportPanel.Visible = false
-TeleportPanel.BackgroundTransparency = 1
+	local barCorner = Instance.new("UICorner")
+	barCorner.CornerRadius = UDim.new(1, 0)
+	barCorner.Parent = bar
 
-local MiscPanel = Instance.new("Frame", SettingsFrame)
-MiscPanel.Size = UDim2.new(1, 0, 1, 0)
-MiscPanel.Visible = false
-MiscPanel.BackgroundTransparency = 1
+	local fill = Instance.new("Frame")
+	fill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+	fill.BackgroundColor3 = Color3.fromRGB(138, 43, 226)
+	fill.Parent = bar
 
--- ============================================
--- NAV BUTTON CREATOR
--- ============================================
-local navY = 12
-local activeNavBtn = nil
+	local fillCorner = Instance.new("UICorner")
+	fillCorner.CornerRadius = UDim.new(1, 0)
+	fillCorner.Parent = fill
 
-local function createNavBtn(labelText)
-    local btn = Instance.new("TextButton", LeftPanel)
-    btn.Size = UDim2.new(1, -20, 0, 34)
-    btn.Position = UDim2.new(0, 10, 0, navY)
-    btn.Text = ""
-    btn.BackgroundColor3 = BG_ITEM
-    btn.BorderSizePixel = 0
-    local bc = Instance.new("UICorner", btn)
-    bc.CornerRadius = UDim.new(0, 10)
+	local knob = Instance.new("Frame")
+	knob.Size = UDim2.new(0, 24, 0, 24)
+	knob.Position = UDim2.new((default - min) / (max - min), -12, 0.5, -12)
+	knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	knob.Parent = bar
 
-    local lbl = Instance.new("TextLabel", btn)
-    lbl.Size = UDim2.new(1, -10, 1, 0)
-    lbl.Position = UDim2.new(0, 10, 0, 0)
-    lbl.BackgroundTransparency = 1
-    lbl.Text = labelText
-    lbl.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Medium)
-    lbl.TextSize = 12
-    lbl.TextColor3 = TEXT_GREY
-    lbl.TextXAlignment = Enum.TextXAlignment.Left
+	local knobCorner = Instance.new("UICorner")
+	knobCorner.CornerRadius = UDim.new(1, 0)
+	knobCorner.Parent = knob
 
-    local accent = Instance.new("Frame", btn)
-    accent.Size = UDim2.new(0, 3, 0.55, 0)
-    accent.Position = UDim2.new(0, 0, 0.225, 0)
-    accent.BackgroundColor3 = ACCENT_LIGHT
-    accent.BorderSizePixel = 0
-    local ac = Instance.new("UICorner", accent)
-    ac.CornerRadius = UDim.new(0, 4)
-    accent.Visible = false
+	local value = default
+	local dragging = false
 
-    navY = navY + 42
+	bar.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+		end
+	end)
 
-    local function setActive(active)
-        TweenService:Create(btn, TweenInfo.new(0.2), {
-            BackgroundColor3 = active and ACCENT_DARK or BG_ITEM
-        }):Play()
-        TweenService:Create(lbl, TweenInfo.new(0.2), {
-            TextColor3 = active and TEXT_WHITE or TEXT_GREY
-        }):Play()
-        accent.Visible = active
-    end
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+			local rel = math.clamp((input.Position.X - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
+			value = min + (max - min) * rel
+			value = math.floor(value / step) * step
+			fill.Size = UDim2.new((value - min) / (max - min), 0, 1, 0)
+			knob.Position = UDim2.new((value - min) / (max - min), -12, 0.5, -12)
+			label.Text = text .. ": " .. value
+			callback(value)
+		end
+	end)
 
-    -- Hover
-    btn.MouseEnter:Connect(function()
-        if accent.Visible then return end
-        TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(40, 40, 40)}):Play()
-    end)
-    btn.MouseLeave:Connect(function()
-        if accent.Visible then return end
-        TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = BG_ITEM}):Play()
-    end)
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = false
+		end
+	end)
 
-    return btn, setActive
+	return frame
 end
 
--- ============================================
--- ESP FUNCTIONS
--- ============================================
-local function addESP(player)
-    if player == LocalPlayer or not player.Character then return end
-    if ESPMode == "ALONE" then
-        if not TargetName or player.Name:lower() ~= TargetName:lower() then return end
-    end
-    if player.Character:FindFirstChild("DeltaESP") then return end
-    local h = Instance.new("Highlight")
-    h.Name = "DeltaESP"
-    h.Parent = player.Character
-    h.FillColor = ESPColor
-    h.FillTransparency = 0.4
-    h.OutlineColor = ESPColor
-    h.OutlineTransparency = 0.2
-    ESPObjects[player] = h
+local function createDropdown(parent, text, options, default, callback)
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(1, -40, 0, 55)
+	frame.BackgroundTransparency = 1
+	frame.Parent = parent
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(0.4, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Text = text
+	label.TextColor3 = Color3.fromRGB(220, 220, 255)
+	label.TextScaled = true
+	label.Font = Enum.Font.GothamSemibold
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = frame
+
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0.6, 0, 1, 0)
+	btn.Position = UDim2.new(0.4, 0, 0, 0)
+	btn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+	btn.Text = default
+	btn.TextColor3 = Color3.fromRGB(200, 200, 255)
+	btn.TextScaled = true
+	btn.Font = Enum.Font.GothamSemibold
+	btn.Parent = frame
+
+	local btnCorner = Instance.new("UICorner")
+	btnCorner.CornerRadius = UDim.new(0, 10)
+	btnCorner.Parent = btn
+
+	local dropdownFrame = Instance.new("Frame")
+	dropdownFrame.Size = UDim2.new(0.6, 0, 0, #options * 40 + 10)
+	dropdownFrame.Position = UDim2.new(0.4, 0, 1, 5)
+	dropdownFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+	dropdownFrame.Visible = false
+	dropdownFrame.ZIndex = 10
+	dropdownFrame.Parent = frame
+
+	local dfCorner = Instance.new("UICorner")
+	dfCorner.CornerRadius = UDim.new(0, 10)
+	dfCorner.Parent = dropdownFrame
+
+	for i, opt in ipairs(options) do
+		local optBtn = Instance.new("TextButton")
+		optBtn.Size = UDim2.new(1, 0, 0, 40)
+		optBtn.Position = UDim2.new(0, 0, 0, (i - 1) * 40 + 5)
+		optBtn.BackgroundTransparency = 1
+		optBtn.Text = opt
+		optBtn.TextColor3 = Color3.fromRGB(200, 200, 255)
+		optBtn.TextScaled = true
+		optBtn.Font = Enum.Font.GothamSemibold
+		optBtn.Parent = dropdownFrame
+		optBtn.MouseButton1Click:Connect(function()
+			btn.Text = opt
+			dropdownFrame.Visible = false
+			callback(opt)
+		end)
+	end
+
+	btn.MouseButton1Click:Connect(function()
+		dropdownFrame.Visible = not dropdownFrame.Visible
+	end)
+
+	return frame
 end
 
-local function removeESP()
-    for _,v in pairs(ESPObjects) do if v then v:Destroy() end end
-    ESPObjects = {}
+local function createColorPicker(parent, text, defaultColor, callback)
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(1, -40, 0, 110)
+	frame.BackgroundTransparency = 1
+	frame.Parent = parent
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 0, 25)
+	label.BackgroundTransparency = 1
+	label.Text = text
+	label.TextColor3 = Color3.fromRGB(220, 220, 255)
+	label.TextScaled = true
+	label.Font = Enum.Font.GothamSemibold
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = frame
+
+	local preview = Instance.new("Frame")
+	preview.Size = UDim2.new(0, 80, 0, 80)
+	preview.Position = UDim2.new(0, 0, 0, 30)
+	preview.BackgroundColor3 = defaultColor
+	preview.Parent = frame
+
+	local previewCorner = Instance.new("UICorner")
+	previewCorner.CornerRadius = UDim.new(0, 12)
+	previewCorner.Parent = preview
+
+	local previewStroke = Instance.new("UIStroke")
+	previewStroke.Thickness = 3
+	previewStroke.Color = Color3.fromRGB(138, 43, 226)
+	previewStroke.Parent = preview
+
+	local rSlider = createSlider(frame, "R", 0, 255, defaultColor.R * 255, 1, function(v)
+		local c = Color3.fromRGB(v, preview.BackgroundColor3.G * 255, preview.BackgroundColor3.B * 255)
+		preview.BackgroundColor3 = c
+		callback(c)
+	end)
+	rSlider.Position = UDim2.new(0, 100, 0, 30)
+
+	local gSlider = createSlider(frame, "G", 0, 255, defaultColor.G * 255, 1, function(v)
+		local c = Color3.fromRGB(preview.BackgroundColor3.R * 255, v, preview.BackgroundColor3.B * 255)
+		preview.BackgroundColor3 = c
+		callback(c)
+	end)
+	gSlider.Position = UDim2.new(0, 100, 0, 55)
+
+	local bSlider = createSlider(frame, "B", 0, 255, defaultColor.B * 255, 1, function(v)
+		local c = Color3.fromRGB(preview.BackgroundColor3.R * 255, preview.BackgroundColor3.G * 255, v)
+		preview.BackgroundColor3 = c
+		callback(c)
+	end)
+	bSlider.Position = UDim2.new(0, 100, 0, 80)
+
+	return frame
 end
 
-local function applyESP()
-    removeESP()
-    if ESPEnabled then
-        for _,p in ipairs(Players:GetPlayers()) do
-            task.spawn(function() addESP(p) end)
-        end
-    end
+-- ESP LOGIC
+getgenv().ESPEnabled = false
+getgenv().ShowNames = true
+getgenv().ShowHealth = true
+getgenv().ShowDistance = true
+getgenv().ESPMode = "Static"
+getgenv().ESPPrimary = Color3.fromRGB(138, 43, 226)
+getgenv().ESPSecondary = Color3.fromRGB(0, 255, 255)
+getgenv().AnimationSpeed = 1.6
+
+local ESPObjects = {}
+local colorConn
+
+local function createESP(plr)
+	if plr == LocalPlayer or ESPObjects[plr] then return end
+	local char = plr.Character
+	if not char then return end
+	local root = char:FindFirstChild("HumanoidRootPart")
+	local head = char:FindFirstChild("Head")
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if not root or not head or not hum then return end
+
+	local hl = Instance.new("Highlight")
+	hl.FillColor = getgenv().ESPPrimary
+	hl.OutlineColor = getgenv().ESPSecondary
+	hl.FillTransparency = 0.5
+	hl.OutlineTransparency = 0
+	hl.Adornee = char
+	hl.Parent = char
+
+	local bb = Instance.new("BillboardGui")
+	bb.Adornee = head
+	bb.AlwaysOnTop = true
+	bb.Size = UDim2.new(5, 0, 2, 0)
+	bb.StudsOffset = Vector3.new(0, 3, 0)
+	bb.Parent = char
+
+	local lbl = Instance.new("TextLabel")
+	lbl.Size = UDim2.new(1, 0, 1, 0)
+	lbl.BackgroundTransparency = 1
+	lbl.TextColor3 = Color3.fromRGB(0, 255, 255)
+	lbl.TextStrokeTransparency = 0
+	lbl.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	lbl.TextScaled = true
+	lbl.Font = Enum.Font.GothamBold
+	lbl.Parent = bb
+
+	ESPObjects[plr] = {Highlight = hl, Billboard = bb, Label = lbl}
 end
 
-Players.PlayerAdded:Connect(function(p)
-    p.CharacterAdded:Connect(function()
-        task.wait(0.5)
-        if ESPEnabled then addESP(p) end
-    end)
-end)
-
--- ============================================
--- FLY SYSTEM
--- ============================================
-local function startFly()
-    local char = LocalPlayer.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-
-    -- Remove old
-    if hrp:FindFirstChild("DeltaFlyVel") then hrp.DeltaFlyVel:Destroy() end
-    if hrp:FindFirstChild("DeltaFlyGyro") then hrp.DeltaFlyGyro:Destroy() end
-
-    local bv = Instance.new("BodyVelocity")
-    bv.Name = "DeltaFlyVel"
-    bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-    bv.Velocity = Vector3.zero
-    bv.Parent = hrp
-
-    local bg = Instance.new("BodyGyro")
-    bg.Name = "DeltaFlyGyro"
-    bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-    bg.D = 100
-    bg.Parent = hrp
-
-    flyBody = {vel = bv, gyro = bg}
+local function updateESP()
+	for plr, data in pairs(ESPObjects) do
+		if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+			local hum = plr.Character.Humanoid
+			local dist = 0
+			local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+			if myRoot then dist = math.floor((myRoot.Position - plr.Character.HumanoidRootPart.Position).Magnitude) end
+			local txt = ""
+			if getgenv().ShowNames then txt = txt .. plr.Name .. "\n" end
+			if getgenv().ShowHealth then txt = txt .. "❤️ " .. math.floor(hum.Health) .. "/" .. hum.MaxHealth .. "\n" end
+			if getgenv().ShowDistance then txt = txt .. "📍 " .. dist .. " studs" end
+			data.Label.Text = txt
+		else
+			if data.Highlight then data.Highlight:Destroy() end
+			if data.Billboard then data.Billboard:Destroy() end
+			ESPObjects[plr] = nil
+		end
+	end
 end
 
-local function stopFly()
-    local char = LocalPlayer.Character
-    if char then
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            if hrp:FindFirstChild("DeltaFlyVel") then hrp.DeltaFlyVel:Destroy() end
-            if hrp:FindFirstChild("DeltaFlyGyro") then hrp.DeltaFlyGyro:Destroy() end
-        end
-    end
-    flyBody = nil
+local function startColorAnim()
+	if colorConn then return end
+	colorConn = RunService.RenderStepped:Connect(function()
+		if not getgenv().ESPEnabled then return end
+		local t = tick() * getgenv().AnimationSpeed
+		local col
+		if getgenv().ESPMode == "Static" then
+			col = getgenv().ESPPrimary
+		elseif getgenv().ESPMode == "Rainbow" then
+			col = Color3.fromHSV((t % 6) / 6, 1, 1)
+		elseif getgenv().ESPMode == "Fast Rainbow" then
+			col = Color3.fromHSV((t * 3 % 6) / 6, 1, 1)
+		elseif getgenv().ESPMode == "Gradient" then
+			col = getgenv().ESPPrimary:Lerp(getgenv().ESPSecondary, (math.sin(t * 1.5) + 1) / 2)
+		elseif getgenv().ESPMode == "Iridescent" then
+			col = Color3.fromHSV((t * 1.2 % 6) / 6, 0.9 + math.sin(t * 4) * 0.1, 1)
+		elseif getgenv().ESPMode == "Prophecy" then
+			col = Color3.fromHSV(0.75 + math.sin(t * 0.8) * 0.2, 1, 1)
+		end
+		for _, data in pairs(ESPObjects) do
+			if data.Highlight then data.Highlight.FillColor = col end
+		end
+	end)
 end
 
-RunService.RenderStepped:Connect(function()
-    if FlyEnabled and flyBody and flyBody.vel then
-        local dir = Vector3.zero
-        if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + Camera.CFrame.LookVector end
-        if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - Camera.CFrame.LookVector end
-        if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - Camera.CFrame.RightVector end
-        if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + Camera.CFrame.RightVector end
-        if UIS:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.new(0,1,0) end
-        if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then dir = dir - Vector3.new(0,1,0) end
-
-        if dir.Magnitude > 0 then
-            dir = dir.Unit
-        end
-
-        flyBody.vel.Velocity = dir * FlySpeed
-        flyBody.gyro.CFrame = Camera.CFrame
-    end
-end)
-
--- ============================================
--- ORBIT LOOP
--- ============================================
-local orbitConnection = nil
-
-local function findOrbitTarget(name)
-    for _, p in pairs(Players:GetPlayers()) do
-        if string.lower(p.Name):find(string.lower(name)) then
-            return p
-        end
-    end
+local function stopColorAnim()
+	if colorConn then colorConn:Disconnect() colorConn = nil end
 end
 
-local function startOrbit()
-    if orbitConnection then orbitConnection:Disconnect() end
-    orbitAngle = 0
-
-    orbitConnection = RunService.RenderStepped:Connect(function(dt)
-        if not OrbitEnabled then
-            orbitConnection:Disconnect()
-            orbitConnection = nil
-            return
-        end
-
-        local target = findOrbitTarget(OrbitTargetName or "")
-        local myChar = LocalPlayer.Character
-
-        if not target or not target.Character or not myChar then return end
-
-        local root = target.Character:FindFirstChild("HumanoidRootPart")
-        if not root then return end
-
-        orbitAngle = orbitAngle + dt * (OrbitSpeed * 20)
-
-        local offset = Vector3.new(
-            math.cos(orbitAngle) * OrbitRadius,
-            2,
-            math.sin(orbitAngle) * OrbitRadius
-        )
-
-        myChar:PivotTo(root.CFrame + offset)
-    end)
-end
--- ============================================
-local function sectionLabel(parent, text, y)
-    local lbl = Instance.new("TextLabel", parent)
-    lbl.Size = UDim2.new(1, -20, 0, 20)
-    lbl.Position = UDim2.new(0, 10, 0, y)
-    lbl.BackgroundTransparency = 1
-    lbl.Text = text:upper()
-    lbl.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold)
-    lbl.TextSize = 10
-    lbl.TextColor3 = ACCENT_LIGHT
-    lbl.TextXAlignment = Enum.TextXAlignment.Left
+local espConn
+local function toggleESP(v)
+	getgenv().ESPEnabled = v
+	if v then
+		for _, plr in ipairs(Players:GetPlayers()) do createESP(plr) end
+		if not espConn then espConn = RunService.RenderStepped:Connect(updateESP) end
+		startColorAnim()
+		Players.PlayerAdded:Connect(function(plr) if getgenv().ESPEnabled then task.wait(1) createESP(plr) end end)
+	else
+		for _, data in pairs(ESPObjects) do
+			if data.Highlight then data.Highlight:Destroy() end
+			if data.Billboard then data.Billboard:Destroy() end
+		end
+		ESPObjects = {}
+		if espConn then espConn:Disconnect() espConn = nil end
+		stopColorAnim()
+	end
 end
 
--- ============================================
--- TOGGLE BUTTON
--- ============================================
-local function createToggle(parent, title, y, default, callback)
-    local frame = Instance.new("Frame", parent)
-    frame.Size = UDim2.new(1, -20, 0, 34)
-    frame.Position = UDim2.new(0, 10, 0, y)
-    frame.BackgroundColor3 = BG_ITEM
-    frame.BorderSizePixel = 0
-    local fc = Instance.new("UICorner", frame)
-    fc.CornerRadius = UDim.new(0, 8)
-
-    local lbl = Instance.new("TextLabel", frame)
-    lbl.Size = UDim2.new(1, -55, 1, 0)
-    lbl.Position = UDim2.new(0, 12, 0, 0)
-    lbl.BackgroundTransparency = 1
-    lbl.Text = title
-    lbl.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Medium)
-    lbl.TextSize = 12
-    lbl.TextColor3 = TEXT_WHITE
-    lbl.TextXAlignment = Enum.TextXAlignment.Left
-
-    local toggleBG = Instance.new("Frame", frame)
-    toggleBG.Size = UDim2.new(0, 40, 0, 20)
-    toggleBG.Position = UDim2.new(1, -50, 0.5, -10)
-    toggleBG.BackgroundColor3 = default and GREEN or Color3.fromRGB(60, 60, 80)
-    toggleBG.BorderSizePixel = 0
-    local tbc = Instance.new("UICorner", toggleBG)
-    tbc.CornerRadius = UDim.new(1, 0)
-
-    local knob = Instance.new("Frame", toggleBG)
-    knob.Size = UDim2.new(0, 16, 0, 16)
-    knob.Position = default and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
-    knob.BackgroundColor3 = TEXT_WHITE
-    knob.BorderSizePixel = 0
-    local kc = Instance.new("UICorner", knob)
-    kc.CornerRadius = UDim.new(1, 0)
-
-    local enabled = default or false
-
-    local btn = Instance.new("TextButton", frame)
-    btn.Size = UDim2.new(1, 0, 1, 0)
-    btn.BackgroundTransparency = 1
-    btn.Text = ""
-
-    btn.MouseButton1Click:Connect(function()
-        enabled = not enabled
-        TweenService:Create(toggleBG, TweenInfo.new(0.2), {
-            BackgroundColor3 = enabled and GREEN or Color3.fromRGB(60, 60, 80)
-        }):Play()
-        TweenService:Create(knob, TweenInfo.new(0.2, Enum.EasingStyle.Quart), {
-            Position = enabled and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
-        }):Play()
-        callback(enabled)
-    end)
-
-    return btn
+-- Movement
+local function toggleInfJump(v)
+	if v then
+		UserInputService.JumpRequest:Connect(function()
+			local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+			if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
+		end)
+	end
 end
 
--- ============================================
--- SLIDER
--- ============================================
-local function createSlider(parent, title, y, min, max, default, callback)
-    sectionLabel(parent, title, y)
-
-    local norm = (default - min) / (max - min)
-
-    local frame = Instance.new("Frame", parent)
-    frame.Size = UDim2.new(1, -20, 0, 6)
-    frame.Position = UDim2.new(0, 10, 0, y + 22)
-    frame.BackgroundColor3 = BG_ITEM
-    frame.BorderSizePixel = 0
-    local fc = Instance.new("UICorner", frame)
-    fc.CornerRadius = UDim.new(1, 0)
-
-    local fill = Instance.new("Frame", frame)
-    fill.Size = UDim2.new(norm, 0, 1, 0)
-    fill.BackgroundColor3 = ACCENT_LIGHT
-    fill.BorderSizePixel = 0
-    local fillC = Instance.new("UICorner", fill)
-    fillC.CornerRadius = UDim.new(1, 0)
-
-    local knob = Instance.new("Frame", frame)
-    knob.Size = UDim2.new(0, 16, 0, 16)
-    knob.Position = UDim2.new(norm, -8, 0.5, -8)
-    knob.BackgroundColor3 = Color3.new(1,1,1)
-    knob.BorderSizePixel = 0
-    local kc = Instance.new("UICorner", knob)
-    kc.CornerRadius = UDim.new(1, 0)
-    local ks = Instance.new("UIStroke", knob)
-    ks.Color = ACCENT
-    ks.Thickness = 1.5
-
-    local valLabel = Instance.new("TextLabel", parent)
-    valLabel.Size = UDim2.new(0, 50, 0, 16)
-    valLabel.Position = UDim2.new(1, -60, 0, y)
-    valLabel.BackgroundTransparency = 1
-    valLabel.TextColor3 = ACCENT_LIGHT
-    valLabel.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold)
-    valLabel.TextSize = 10
-    valLabel.Text = tostring(math.floor(default))
-    valLabel.TextXAlignment = Enum.TextXAlignment.Right
-
-    local dragging = false
-
-    local function update(input)
-        local pos = math.clamp((input.Position.X - frame.AbsolutePosition.X) / frame.AbsoluteSize.X, 0, 1)
-        fill.Size = UDim2.new(pos, 0, 1, 0)
-        knob.Position = UDim2.new(pos, -8, 0.5, -8)
-        local val = min + pos * (max - min)
-        valLabel.Text = tostring(math.floor(val))
-        callback(val)
-    end
-
-    frame.InputBegan:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-            dragging = true; MainFrame.Active = false; update(i)
-        end
-    end)
-    frame.InputEnded:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-            dragging = false; MainFrame.Active = true
-        end
-    end)
-    UIS.InputChanged:Connect(function(i)
-        if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
-            update(i)
-        end
-    end)
+local flyConn, bv, bg
+local function toggleFly(v)
+	local char = LocalPlayer.Character
+	if not char then return end
+	local root = char:FindFirstChild("HumanoidRootPart")
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if not root or not hum then return end
+	if v then
+		hum.PlatformStand = true
+		bv = Instance.new("BodyVelocity")
+		bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+		bv.Parent = root
+		bg = Instance.new("BodyGyro")
+		bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+		bg.P = 12000
+		bg.Parent = root
+		flyConn = RunService.RenderStepped:Connect(function()
+			local cam = workspace.CurrentCamera
+			local move = Vector3.new(
+				(UserInputService:IsKeyDown(Enum.KeyCode.D) and 1 or 0) - (UserInputService:IsKeyDown(Enum.KeyCode.A) and 1 or 0),
+				(UserInputService:IsKeyDown(Enum.KeyCode.Space) and 1 or 0) - (UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) and 1 or 0),
+				(UserInputService:IsKeyDown(Enum.KeyCode.S) and 1 or 0) - (UserInputService:IsKeyDown(Enum.KeyCode.W) and 1 or 0)
+			)
+			bv.Velocity = cam.CFrame:VectorToWorldSpace(move) * 100
+			bg.CFrame = cam.CFrame
+		end)
+	else
+		if bv then bv:Destroy() end
+		if bg then bg:Destroy() end
+		if flyConn then flyConn:Disconnect() end
+		if hum then hum.PlatformStand = false end
+	end
 end
 
--- ============================================
--- RGB SLIDER (for ESP)
--- ============================================
-local function createRGBSlider(parent, name, y)
-    sectionLabel(parent, name, y)
-
-    local initVal = name == "R" and ESPColor.R or name == "G" and ESPColor.G or ESPColor.B
-
-    -- Track (visual only, 6px)
-    local track = Instance.new("Frame", parent)
-    track.Size = UDim2.new(1, -20, 0, 6)
-    track.Position = UDim2.new(0, 10, 0, y + 22)
-    track.BackgroundColor3 = BG_ITEM
-    track.BorderSizePixel = 0
-    track.ZIndex = 2
-    local tc = Instance.new("UICorner", track)
-    tc.CornerRadius = UDim.new(1, 0)
-
-    local fill = Instance.new("Frame", track)
-    fill.Size = UDim2.new(initVal, 0, 1, 0)
-    fill.BackgroundColor3 = name == "R" and Color3.fromRGB(220,50,80) or name == "G" and Color3.fromRGB(50,200,100) or Color3.fromRGB(50,100,255)
-    fill.BorderSizePixel = 0
-    fill.ZIndex = 3
-    local fillC = Instance.new("UICorner", fill)
-    fillC.CornerRadius = UDim.new(1, 0)
-
-    local knob = Instance.new("Frame", track)
-    knob.Size = UDim2.new(0, 16, 0, 16)
-    knob.Position = UDim2.new(initVal, -8, 0.5, -8)
-    knob.BackgroundColor3 = Color3.new(1,1,1)
-    knob.BorderSizePixel = 0
-    knob.ZIndex = 4
-    local kc = Instance.new("UICorner", knob)
-    kc.CornerRadius = UDim.new(1, 0)
-    local ks = Instance.new("UIStroke", knob)
-    ks.Color = ACCENT
-    ks.Thickness = 1.5
-
-    -- Invisible hit area (30px tall) over the track
-    local hitbox = Instance.new("TextButton", parent)
-    hitbox.Size = UDim2.new(1, -20, 0, 30)
-    hitbox.Position = UDim2.new(0, 10, 0, y + 12)
-    hitbox.BackgroundTransparency = 1
-    hitbox.Text = ""
-    hitbox.ZIndex = 5
-
-    local dragging = false
-
-    local function update(inputX)
-        local pos = math.clamp((inputX - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
-        fill.Size = UDim2.new(pos, 0, 1, 0)
-        knob.Position = UDim2.new(pos, -8, 0.5, -8)
-        local val = math.floor(pos * 255)
-        if name == "R" then ESPColor = Color3.fromRGB(val, math.floor(ESPColor.G*255), math.floor(ESPColor.B*255)) end
-        if name == "G" then ESPColor = Color3.fromRGB(math.floor(ESPColor.R*255), val, math.floor(ESPColor.B*255)) end
-        if name == "B" then ESPColor = Color3.fromRGB(math.floor(ESPColor.R*255), math.floor(ESPColor.G*255), val) end
-        for _,v in pairs(ESPObjects) do
-            if v then v.FillColor = ESPColor; v.OutlineColor = ESPColor end
-        end
-    end
-
-    hitbox.MouseButton1Down:Connect(function(x)
-        dragging = true
-        update(x)
-    end)
-    hitbox.MouseButton1Up:Connect(function()
-        dragging = false
-    end)
-    hitbox.MouseLeave:Connect(function()
-        dragging = false
-    end)
-    hitbox.MouseMoved:Connect(function(x)
-        if dragging then update(x) end
-    end)
-
-    -- Touch support
-    hitbox.TouchStarted:Connect(function(touch)
-        dragging = true
-        update(touch.Position.X)
-    end)
-    hitbox.TouchEnded:Connect(function()
-        dragging = false
-    end)
-    hitbox.TouchMoved:Connect(function(touch)
-        if dragging then update(touch.Position.X) end
-    end)
+local noclipConn
+local function toggleNoclip(v)
+	if noclipConn then noclipConn:Disconnect() end
+	if v then
+		noclipConn = RunService.Stepped:Connect(function()
+			local char = LocalPlayer.Character
+			if char then
+				for _, p in pairs(char:GetDescendants()) do
+					if p:IsA("BasePart") then p.CanCollide = false end
+				end
+			end
+		end)
+	end
 end
 
--- ============================================
--- ACTION BUTTON
--- ============================================
-local function createActionButton(parent, title, y, color, callback)
-    local btn = Instance.new("TextButton", parent)
-    btn.Size = UDim2.new(1, -20, 0, 34)
-    btn.Position = UDim2.new(0, 10, 0, y)
-    btn.Text = title
-    btn.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold)
-    btn.TextSize = 12
-    btn.BackgroundColor3 = color or BG_ITEM
-    btn.TextColor3 = TEXT_WHITE
-    btn.BorderSizePixel = 0
-    local bc = Instance.new("UICorner", btn)
-    bc.CornerRadius = UDim.new(0, 8)
-    local bs = Instance.new("UIStroke", btn)
-    bs.Color = ACCENT_DARK
-    bs.Thickness = 1
-
-    btn.MouseEnter:Connect(function()
-        TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = ACCENT_DARK}):Play()
-    end)
-    btn.MouseLeave:Connect(function()
-        TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = color or BG_ITEM}):Play()
-    end)
-
-    btn.MouseButton1Click:Connect(callback)
-    return btn
+local function setSpeed(v)
+	local char = LocalPlayer.Character
+	if char then
+		local hum = char:FindFirstChildOfClass("Humanoid")
+		if hum then hum.WalkSpeed = v end
+	end
 end
 
--- ============================================
--- ESP PANEL CONTENT
--- ============================================
-sectionLabel(ESPPanel, "ESP Color", 10)
-createRGBSlider(ESPPanel, "R", 30)
-createRGBSlider(ESPPanel, "G", 68)
-createRGBSlider(ESPPanel, "B", 106)
+-- Build ESP Section
+createSectionHeader(ESPSection, "ESP CONTROLS")
+createToggle(ESPSection, "Enable ESP", false, toggleESP)
+createToggle(ESPSection, "Show Names", true, function(v) getgenv().ShowNames = v end)
+createToggle(ESPSection, "Show Health", true, function(v) getgenv().ShowHealth = v end)
+createToggle(ESPSection, "Show Distance", true, function(v) getgenv().ShowDistance = v end)
 
-local ModeButton = Instance.new("TextButton", ESPPanel)
-ModeButton.Size = UDim2.new(1, -20, 0, 34)
-ModeButton.Position = UDim2.new(0, 10, 0, 150)
-ModeButton.Text = "Mode: ALL"
-ModeButton.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Medium)
-ModeButton.TextSize = 13
-ModeButton.BackgroundColor3 = BG_ITEM
-ModeButton.TextColor3 = TEXT_WHITE
-ModeButton.BorderSizePixel = 0
-local mbC = Instance.new("UICorner", ModeButton)
-mbC.CornerRadius = UDim.new(0, 8)
-local mbS = Instance.new("UIStroke", ModeButton)
-mbS.Color = ACCENT_DARK
-mbS.Thickness = 1
-
-local NameBox = Instance.new("TextBox", ESPPanel)
-NameBox.Size = UDim2.new(1, -20, 0, 34)
-NameBox.Position = UDim2.new(0, 10, 0, 193)
-NameBox.PlaceholderText = "Player name..."
-NameBox.Text = ""
-NameBox.Visible = false
-NameBox.BackgroundColor3 = BG_ITEM
-NameBox.TextColor3 = TEXT_WHITE
-NameBox.PlaceholderColor3 = TEXT_GREY
-NameBox.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json")
-NameBox.TextSize = 13
-NameBox.BorderSizePixel = 0
-local nbC = Instance.new("UICorner", NameBox)
-nbC.CornerRadius = UDim.new(0, 8)
-local nbS = Instance.new("UIStroke", NameBox)
-nbS.Color = ACCENT
-nbS.Thickness = 1
-
-ModeButton.MouseButton1Click:Connect(function()
-    if ESPMode == "ALL" then
-        ESPMode = "ALONE"
-        ModeButton.Text = "Mode: ALONE"
-        NameBox.Visible = true
-        TweenService:Create(mbS, TweenInfo.new(0.2), {Color = ACCENT_LIGHT}):Play()
-        notify("ESP mode: ALONE", 2)
-    else
-        ESPMode = "ALL"
-        ModeButton.Text = "Mode: ALL"
-        NameBox.Visible = false
-        TargetName = nil
-        TweenService:Create(mbS, TweenInfo.new(0.2), {Color = ACCENT_DARK}):Play()
-        notify("ESP mode: ALL", 2)
-    end
-    applyESP()
+createDropdown(ESPSection, "Highlight Mode", {"Static", "Rainbow", "Fast Rainbow", "Gradient", "Iridescent", "Prophecy"}, "Static", function(v)
+	getgenv().ESPMode = v
 end)
 
-NameBox.FocusLost:Connect(function()
-    TargetName = NameBox.Text
-    applyESP()
-    if TargetName and TargetName ~= "" then
-        notify("ESP target: " .. TargetName, 2)
-    end
+createColorPicker(ESPSection, "Primary Color", Color3.fromRGB(138, 43, 226), function(c) getgenv().ESPPrimary = c end)
+createColorPicker(ESPSection, "Secondary Color", Color3.fromRGB(0, 255, 255), function(c) getgenv().ESPSecondary = c end)
+
+createSlider(ESPSection, "Animation Speed", 0.5, 5, 1.6, 0.1, function(v) getgenv().AnimationSpeed = v end)
+
+-- Build Movement Section
+createSectionHeader(MoveSection, "MOVEMENT CHEATS")
+createToggle(MoveSection, "Infinite Jump", false, toggleInfJump)
+createToggle(MoveSection, "Fly", false, toggleFly)
+createToggle(MoveSection, "Noclip", false, toggleNoclip)
+createSlider(MoveSection, "WalkSpeed", 16, 500, 16, 1, setSpeed)
+
+-- Tab switching
+ESPBtn.MouseButton1Click:Connect(function()
+	ESPSection.Visible = true
+	MoveSection.Visible = false
+	TweenService:Create(ESPBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(138, 43, 226)}):Play()
+	TweenService:Create(MoveBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(20, 20, 30)}):Play()
 end)
 
--- ============================================
--- DISPLAY PANEL CONTENT
--- ============================================
-createSlider(DisplayPanel, "Saturation", 10, 0, 2, 1, function(v)
-    ColorEffect.Saturation = v - 1
-end)
-createSlider(DisplayPanel, "Brightness", 60, -1, 1, 0, function(v)
-    ColorEffect.Brightness = v
-end)
-createSlider(DisplayPanel, "Contrast", 110, 0, 2, 0, function(v)
-    ColorEffect.Contrast = v
+MoveBtn.MouseButton1Click:Connect(function()
+	ESPSection.Visible = false
+	MoveSection.Visible = true
+	TweenService:Create(MoveBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(138, 43, 226)}):Play()
+	TweenService:Create(ESPBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(20, 20, 30)}):Play()
 end)
 
-createToggle(DisplayPanel, "Motion Blur", 170, false, function(v)
-    MotionBlurEnabled = v
-    if not v then Blur.Size = 0; currentBlur = 0 end
-    notify(v and "Motion Blur ON" or "Motion Blur OFF", 2, v and GREEN or RED)
-end)
-
-createSlider(DisplayPanel, "Field of View", 215, 70, 120, 70, function(v)
-    Camera.FieldOfView = v
-    BaseFOV = v
-end)
-
--- ============================================
--- PLAYER PANEL CONTENT (with scroll)
--- ============================================
-local PlayerScroll = Instance.new("ScrollingFrame", PlayerPanel)
-PlayerScroll.Size = UDim2.new(1, 0, 1, 0)
-PlayerScroll.Position = UDim2.new(0, 0, 0, 0)
-PlayerScroll.BackgroundTransparency = 1
-PlayerScroll.BorderSizePixel = 0
-PlayerScroll.ScrollBarThickness = 3
-PlayerScroll.ScrollBarImageColor3 = ACCENT
-PlayerScroll.CanvasSize = UDim2.new(0, 0, 0, 590)
-PlayerScroll.ClipsDescendants = true
-
-sectionLabel(PlayerScroll, "Movement", 10)
-
-createSlider(PlayerScroll, "Walk Speed", 30, 16, 200, 16, function(v)
-    SpeedValue = v
-    local char = LocalPlayer.Character
-    if char then
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum then hum.WalkSpeed = v end
-    end
-end)
-
-createSlider(PlayerScroll, "Jump Power", 85, 50, 300, 50, function(v)
-    JumpValue = v
-    local char = LocalPlayer.Character
-    if char then
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum then hum.JumpPower = v end
-    end
-end)
-
-sectionLabel(PlayerScroll, "Abilities", 140)
-
-createToggle(PlayerScroll, "Fly", 160, false, function(v)
-    FlyEnabled = v
-    if v then
-        startFly()
-        notify("Fly ENABLED", 2, GREEN)
-    else
-        stopFly()
-        notify("Fly DISABLED", 2, RED)
-    end
-end)
-
-createSlider(PlayerScroll, "Fly Speed", 205, 10, 200, 50, function(v)
-    FlySpeed = v
-end)
-
-createToggle(PlayerScroll, "Noclip", 265, false, function(v)
-    NoclipEnabled = v
-    notify(v and "Noclip ENABLED" or "Noclip DISABLED", 2, v and GREEN or RED)
-end)
-
-createToggle(PlayerScroll, "Infinite Jump", 310, false, function(v)
-    InfJumpEnabled = v
-    notify(v and "Infinite Jump ENABLED" or "Infinite Jump DISABLED", 2, v and GREEN or RED)
-end)
-
--- ============================================
--- ORBIT UI
--- ============================================
-sectionLabel(PlayerScroll, "Orbit", 360)
-
-local OrbitNameBox = Instance.new("TextBox", PlayerScroll)
-OrbitNameBox.Size = UDim2.new(1, -20, 0, 34)
-OrbitNameBox.Position = UDim2.new(0, 10, 0, 380)
-OrbitNameBox.PlaceholderText = "Target player name..."
-OrbitNameBox.Text = ""
-OrbitNameBox.BackgroundColor3 = BG_ITEM
-OrbitNameBox.TextColor3 = TEXT_WHITE
-OrbitNameBox.PlaceholderColor3 = TEXT_GREY
-OrbitNameBox.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json")
-OrbitNameBox.TextSize = 12
-OrbitNameBox.BorderSizePixel = 0
-local onbC = Instance.new("UICorner", OrbitNameBox)
-onbC.CornerRadius = UDim.new(0, 8)
-local onbS = Instance.new("UIStroke", OrbitNameBox)
-onbS.Color = ACCENT
-onbS.Thickness = 1
-
-OrbitNameBox.FocusLost:Connect(function()
-    OrbitTargetName = OrbitNameBox.Text ~= "" and OrbitNameBox.Text or nil
-    if OrbitTargetName then
-        notify("Orbit target: " .. OrbitTargetName, 2, ACCENT_LIGHT)
-    end
-end)
-
-createToggle(PlayerScroll, "Orbit Player", 424, false, function(v)
-    OrbitEnabled = v
-    if v then
-        if not OrbitTargetName or OrbitTargetName == "" then
-            notify("Enter a player name first!", 2, RED)
-            OrbitEnabled = false
-            return
-        end
-        startOrbit()
-        notify("Orbit ENABLED", 2, GREEN)
-    else
-        notify("Orbit DISABLED", 2, RED)
-        -- PlatformStand reset handled inside loop
-    end
-end)
-
-createSlider(PlayerScroll, "Orbit Radius", 468, 2, 20, 5, function(v)
-    OrbitRadius = v
-end)
-
-createSlider(PlayerScroll, "Orbit Speed", 523, 0.5, 5, 1, function(v)
-    OrbitSpeed = v
-end)
-
--- Apply speed/jump on respawn
-LocalPlayer.CharacterAdded:Connect(function(char)
-    task.wait(0.5)
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if hum then
-        hum.WalkSpeed = SpeedValue
-        hum.JumpPower = JumpValue
-    end
-end)
-
--- ============================================
--- TELEPORT PANEL CONTENT
--- ============================================
-sectionLabel(TeleportPanel, "Teleport to Player", 10)
-
-local TPScroll = Instance.new("ScrollingFrame", TeleportPanel)
-TPScroll.Size = UDim2.new(1, -20, 1, -40)
-TPScroll.Position = UDim2.new(0, 10, 0, 35)
-TPScroll.BackgroundTransparency = 1
-TPScroll.BorderSizePixel = 0
-TPScroll.ScrollBarThickness = 3
-TPScroll.ScrollBarImageColor3 = ACCENT
-TPScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-
-local TPLayout = Instance.new("UIListLayout", TPScroll)
-TPLayout.Padding = UDim.new(0, 5)
-TPLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
-local function refreshTPList()
-    for _,c in ipairs(TPScroll:GetChildren()) do
-        if c:IsA("TextButton") then c:Destroy() end
-    end
-
-    for _,p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then
-            local btn = Instance.new("TextButton", TPScroll)
-            btn.Size = UDim2.new(1, 0, 0, 32)
-            btn.BackgroundColor3 = BG_ITEM
-            btn.BorderSizePixel = 0
-            btn.Text = "  " .. p.DisplayName .. " (@" .. p.Name .. ")"
-            btn.TextColor3 = TEXT_WHITE
-            btn.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Medium)
-            btn.TextSize = 11
-            btn.TextXAlignment = Enum.TextXAlignment.Left
-            local bc = Instance.new("UICorner", btn)
-            bc.CornerRadius = UDim.new(0, 8)
-
-            btn.MouseEnter:Connect(function()
-                TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = ACCENT_DARK}):Play()
-            end)
-            btn.MouseLeave:Connect(function()
-                TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = BG_ITEM}):Play()
-            end)
-
-            btn.MouseButton1Click:Connect(function()
-                local char = LocalPlayer.Character
-                local targetChar = p.Character
-                if char and targetChar then
-                    local hrp = char:FindFirstChild("HumanoidRootPart")
-                    local thrp = targetChar:FindFirstChild("HumanoidRootPart")
-                    if hrp and thrp then
-                        hrp.CFrame = thrp.CFrame * CFrame.new(0, 0, 3)
-                        notify("Teleported to " .. p.DisplayName, 2, GREEN)
-                    end
-                else
-                    notify("Player not found!", 2, RED)
-                end
-            end)
-        end
-    end
-
-    TPScroll.CanvasSize = UDim2.new(0, 0, 0, TPLayout.AbsoluteContentSize.Y + 5)
+-- Open / Close animations
+local function openMenu()
+	MainFrame.Visible = true
+	MainFrame.Size = UDim2.new(0, 0, 0, 0)
+	MainFrame.BackgroundTransparency = 1
+	local tween = TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back), {
+		Size = UDim2.new(0, 680, 0, 520),
+		BackgroundTransparency = 0
+	})
+	tween:Play()
+	tween.Completed:Wait()
 end
 
--- ============================================
--- MISC PANEL CONTENT
--- ============================================
-sectionLabel(MiscPanel, "Server Info", 10)
-
-local InfoFrame = Instance.new("Frame", MiscPanel)
-InfoFrame.Size = UDim2.new(1, -20, 0, 70)
-InfoFrame.Position = UDim2.new(0, 10, 0, 32)
-InfoFrame.BackgroundColor3 = BG_ITEM
-InfoFrame.BorderSizePixel = 0
-local ifc = Instance.new("UICorner", InfoFrame)
-ifc.CornerRadius = UDim.new(0, 8)
-
-local infoText = Instance.new("TextLabel", InfoFrame)
-infoText.Size = UDim2.new(1, -16, 1, 0)
-infoText.Position = UDim2.new(0, 8, 0, 0)
-infoText.BackgroundTransparency = 1
-infoText.TextColor3 = TEXT_GREY
-infoText.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json")
-infoText.TextSize = 11
-infoText.TextXAlignment = Enum.TextXAlignment.Left
-infoText.TextYAlignment = Enum.TextYAlignment.Center
-infoText.TextWrapped = true
-
-local function updateInfo()
-    local ping = math.floor(LocalPlayer:GetNetworkPing() * 1000)
-    local fps = math.floor(1 / RunService.RenderStepped:Wait())
-    local playerCount = #Players:GetPlayers()
-    infoText.Text = string.format(
-        "Players: %d  |  Ping: %dms  |  FPS: %d\nGame: %s\nServer ID: %s",
-        playerCount, ping, fps,
-        game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name or "Unknown",
-        game.JobId:sub(1, 18) .. "..."
-    )
+local function closeMenu()
+	local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {
+		Size = UDim2.new(0, 0, 0, 0),
+		BackgroundTransparency = 1
+	})
+	tween:Play()
+	tween.Completed:Connect(function()
+		MainFrame.Visible = false
+	end)
 end
 
-task.spawn(function()
-    while task.wait(2) do
-        pcall(updateInfo)
-    end
+CloseBtn.MouseButton1Click:Connect(closeMenu)
+
+FloatBtn.MouseButton1Click:Connect(function()
+	if MainFrame.Visible then
+		closeMenu()
+	else
+		openMenu()
+	end
 end)
 
-sectionLabel(MiscPanel, "Actions", 115)
-
-createActionButton(MiscPanel, "Rejoin Server", 138, BG_ITEM, function()
-    notify("Rejoining...", 2, ACCENT_LIGHT)
-    task.wait(1)
-    TeleportService = game:GetService("TeleportService")
-    TeleportService:Teleport(game.PlaceId, LocalPlayer)
-end)
-
-createActionButton(MiscPanel, "Copy Server Link", 180, BG_ITEM, function()
-    local link = "roblox://experiences/start?placeId=" .. game.PlaceId .. "&gameInstanceId=" .. game.JobId
-    if setclipboard then
-        setclipboard(link)
-        notify("Server link copied!", 2, GREEN)
-    else
-        notify("Clipboard not supported", 2, RED)
-    end
-end)
-
-createActionButton(MiscPanel, "Reset Character", 222, Color3.fromRGB(60, 30, 30), function()
-    local char = LocalPlayer.Character
-    if char then
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum.Health = 0
-            notify("Character reset", 2)
-        end
-    end
-end)
-
-sectionLabel(MiscPanel, "Keybind", 270)
-
-local keybindLabel = Instance.new("TextLabel", MiscPanel)
-keybindLabel.Size = UDim2.new(1, -20, 0, 24)
-keybindLabel.Position = UDim2.new(0, 10, 0, 292)
-keybindLabel.BackgroundTransparency = 1
-keybindLabel.Text = "Press RightShift to toggle menu"
-keybindLabel.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json")
-keybindLabel.TextSize = 11
-keybindLabel.TextColor3 = TEXT_GREY
-keybindLabel.TextXAlignment = Enum.TextXAlignment.Left
-
--- ============================================
--- KEYBIND (RightShift)
--- ============================================
-UIS.InputBegan:Connect(function(input, gpe)
-    if gpe then return end
-    if input.KeyCode == Enum.KeyCode.RightShift then
-        MainFrame.Visible = not MainFrame.Visible
-    end
-end)
-
--- ============================================
--- NAV TABS
--- ============================================
-local currentTab = nil
-local currentSetActive = nil
-
-local function makeTab(label, panel, onOpen)
-    local btn, setActive = createNavBtn(label)
-
-    btn.MouseButton1Click:Connect(function()
-        if onOpen then onOpen() end
-
-        if currentTab == panel then
-            showSettings(false)
-            setActive(false)
-            panel.Visible = false
-            currentTab = nil
-            currentSetActive = nil
-        else
-            if currentTab then
-                currentTab.Visible = false
-                if currentSetActive then currentSetActive(false) end
-            end
-            panel.Visible = true
-            setActive(true)
-            showSettings(true)
-            currentTab = panel
-            currentSetActive = setActive
-        end
-    end)
+-- Auto create ESP for existing players
+for _, plr in ipairs(Players:GetPlayers()) do
+	createESP(plr)
 end
 
-makeTab("ESP", ESPPanel, function()
-    ESPEnabled = not ESPEnabled
-    applyESP()
-    notify(ESPEnabled and "ESP ENABLED" or "ESP DISABLED", 2, ESPEnabled and GREEN or RED)
-end)
-
-makeTab("Display", DisplayPanel)
-
-makeTab("Player", PlayerPanel)
-
-makeTab("Teleport", TeleportPanel, function()
-    refreshTPList()
-end)
-
-makeTab("Misc", MiscPanel, function()
-    pcall(updateInfo)
-end)
-
--- ============================================
--- FLOAT TOGGLE (with rotation + fade animation)
--- ============================================
-FloatButton.MouseButton1Click:Connect(function()
-    if MainFrame.Visible then
-        -- Close: shrink + rotate out + fade
-        MainFrame.Active = false
-        TweenService:Create(MainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
-            Size = UDim2.new(0, 500, 0, 0),
-            Position = UDim2.new(0.5, -250, 0.5, -10),
-            Rotation = -8
-        }):Play()
-        task.delay(0.35, function()
-            MainFrame.Visible = false
-            MainFrame.Size = UDim2.new(0, 500, 0, 440)
-            MainFrame.Position = UDim2.new(0.5, -250, 0.5, -220)
-            MainFrame.Rotation = 0
-            MainFrame.Active = true
-        end)
-    else
-        -- Open: grow + rotate in
-        MainFrame.Visible = true
-        MainFrame.Size = UDim2.new(0, 480, 0, 0)
-        MainFrame.Position = UDim2.new(0.5, -240, 0.5, -10)
-        MainFrame.Rotation = 6
-        TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0, 500, 0, 440),
-            Position = UDim2.new(0.5, -250, 0.5, -220),
-            Rotation = 0
-        }):Play()
-        -- Restore active tab if one was selected
-        if currentTab then
-            currentTab.Visible = true
-            SettingsFrame.Visible = true
-            SettingsFrame.BackgroundTransparency = 0
-        end
-    end
-end)
-
--- FLOAT BUTTON HOVER
-FloatButton.MouseEnter:Connect(function()
-    TweenService:Create(fbStroke, TweenInfo.new(0.2), {Color = ACCENT_LIGHT}):Play()
-    TweenService:Create(FloatButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(38, 38, 38)}):Play()
-end)
-FloatButton.MouseLeave:Connect(function()
-    TweenService:Create(fbStroke, TweenInfo.new(0.2), {Color = ACCENT}):Play()
-    TweenService:Create(FloatButton, TweenInfo.new(0.2), {BackgroundColor3 = BG_PANEL}):Play()
-end)
-
--- ============================================
--- STARTUP
--- ============================================
-notify("Delta Menu v2 Loaded!", 4, ACCENT_LIGHT)
-print("DELTA UI v2 LOADED")
+print("✅ Δ Cyberpunk Menu loaded | Premium custom UI ready")
